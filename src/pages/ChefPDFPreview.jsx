@@ -25,9 +25,9 @@ const ChefPDFPreview = ({ booking, className }) => {
       
       // Try multiple API endpoints
       const endpoints = [
-        `https://shine-banquet-hotel-backend.vercel.app/api/banquet-menus/${booking._id}`,
-        `https://shine-banquet-hotel-backend.vercel.app/api/menus/all/${booking.customerRef || booking._id}`,
-        `https://shine-banquet-hotel-backend.vercel.app/api/menus/${booking._id}`
+        `https://tulsi-banquet-backend.vercel.app/api/banquet-menus/${booking._id}`,
+        `https://tulsi-banquet-backend.vercel.app/api/menus/all/${booking.customerRef || booking._id}`,
+        `https://tulsi-banquet-backend.vercel.app/api/menus/${booking._id}`
       ];
 
       for (const endpoint of endpoints) {
@@ -141,7 +141,7 @@ const ChefPDFPreview = ({ booking, className }) => {
                 <div ref={printRef} className="bg-white p-8 max-w-4xl mx-auto">
                   <div className="text-center mb-8">
                     <img src={Logo} alt="Tulsi Logo" className="w-40 h-auto mx-auto mb-4" />
-                    <h1 className="text-2xl font-bold">TULSI - CHEF INSTRUCTIONS</h1>
+                    <h1 className="text-2xl font-bold">TULSI BANQUET - CHEF INSTRUCTIONS</h1>
                   </div>
                   
                   <div className="mb-8">

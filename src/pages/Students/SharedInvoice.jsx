@@ -17,7 +17,7 @@ const SharedInvoice = () => {
   useEffect(() => {
     const fetchBooking = async () => {
       try {
-        const res = await axios.get(`https://shine-banquet-hotel-backend.vercel.app/api/banquet-bookings/${id}`);
+        const res = await axios.get(`https://tulsi-banquet-backend.vercel.app/api/banquet-bookings/${id}`);
         setBooking(res.data);
       } catch (error) {
         setError("Failed to load booking details. Please try again later.");
@@ -129,7 +129,7 @@ const SharedInvoice = () => {
       link.click();
       
       // Open WhatsApp with message
-      const message = `Hi ${booking.name}, here is your booking invoice from SHINE. Please find the PDF attachment.`;
+      const message = `Hi ${booking.name}, here is your booking invoice from Tulsi Banquet. Please find the PDF attachment.`;
       const whatsappUrl = `https://wa.me/${booking.whatsapp || booking.number}?text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, '_blank');
       
@@ -148,7 +148,7 @@ const SharedInvoice = () => {
               <div className="flex flex-col items-center space-y-2 print:flex-row print:space-y-0 print:space-x-4">
                 <img
                   src={Logo}
-                  alt="SHINE"
+                  alt="TULSI"
                   className="w-24 h-24 object-contain rounded-lg print:w-16 print:h-16"
                 />
                 <p className="text-gray-600 text-center print:text-lg print:font-semibold print:text-black">Booking Invoice</p>
@@ -353,7 +353,7 @@ const SharedInvoice = () => {
 
             {/* Footer */}
             <div className="border-t border-gray-200 pt-6 text-center text-sm text-gray-600 print:pt-3 print:text-xs print:text-black">
-              <p className="mb-2 print:mb-1">Thank you for choosing SHINE!</p>
+              <p className="mb-2 print:mb-1">Thank you for choosing Tulsi Banquet!</p>
               <p>For any queries, please contact us at your convenience.</p>
             </div>
           </div>

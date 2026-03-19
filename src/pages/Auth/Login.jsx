@@ -12,19 +12,19 @@ const Login = () => {
 
   // Hardcoded credentials with roles
   const hardcodedUsers = {
-    "admin@shine.com": {
+    "admin@tulsi.com": {
       password: "admin@123",
       role: "Admin",
       name: "Admin User",
       isActive: true,
     },
-    "staff@shine.com": {
+    "staff@tulsi.com": {
       password: "staff@123",
       role: "Staff",
       name: "Staff User",
       isActive: true,
     },
-    "manager@shine.com": {
+    "manager@tulsi.com": {
       password: "manager@123",
       role: "Admin",
       name: "Manager User",
@@ -92,7 +92,7 @@ const Login = () => {
           <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8">
             <div className="text-center mb-6 sm:mb-8">
               <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{color: 'hsl(45, 100%, 20%)'}}>
-                Shine Hotel
+                Tulsi Banquet
               </h1>
               <p className="text-sm sm:text-base text-gray-600">Sign in to your account</p>
             </div>
@@ -144,8 +144,8 @@ const Login = () => {
             <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-600 mb-2">Demo Credentials:</p>
               <div className="text-xs sm:text-sm text-gray-500 space-y-1">
-                <div className="break-all">Admin: admin@shine.com / admin@123</div>
-                <div className="break-all">Staff: staff@shine.com / staff@123</div>
+                <div className="break-all">Admin: admin@tulsi.com / admin@123</div>
+                <div className="break-all">Staff: staff@tulsi.com / staff@123</div>
               </div>
             </div>
           </div>

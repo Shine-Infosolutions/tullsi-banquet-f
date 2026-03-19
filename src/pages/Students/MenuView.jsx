@@ -19,7 +19,7 @@ const MenuView = () => {
         // Try to fetch menu first
         try {
           const res = await axios.get(
-            `https://shine-banquet-hotel-backend.vercel.app/api/menus/${id}`,
+            `https://tulsi-banquet-backend.vercel.app/api/menus/${id}`,
             {
               headers: { Authorization: `Bearer ${token}` }
             }
@@ -33,7 +33,7 @@ const MenuView = () => {
         
         // Fallback: try to get menu from booking data
         const bookingRes = await axios.get(
-          `https://shine-banquet-hotel-backend.vercel.app/api/bookings/${id}`,
+          `https://tulsi-banquet-backend.vercel.app/api/bookings/${id}`,
           {
             headers: { Authorization: `Bearer ${token}` }
           }

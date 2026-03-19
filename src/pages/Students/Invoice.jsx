@@ -71,7 +71,7 @@ const Invoice = () => {
   };
 
   const handleShare = () => {
-    const message = `Hi ${booking.name}, here is your booking invoice from SHINE. Please use Ctrl+P (or Cmd+P on Mac) to print/save as PDF, then share the PDF file.`;
+    const message = `Hi ${booking.name}, here is your booking invoice from Tulsi Banquet. Please use Ctrl+P (or Cmd+P on Mac) to print/save as PDF, then share the PDF file.`;
     const whatsappUrl = `https://wa.me/${booking.whatsapp || booking.number}?text=${encodeURIComponent(message)}`;
     
     // Open WhatsApp
@@ -393,7 +393,7 @@ const Invoice = () => {
 
             {/* Footer */}
             <div className="border-t border-gray-200 pt-6 text-center text-sm text-gray-600 print:pt-3 print:text-xs print:text-black">
-              <p className="mb-2 print:mb-0">Thank you for choosing SHINE!</p>
+              <p className="mb-2 print:mb-0">Thank you for choosing Tulsi Banquet!</p>
               <p className="print:hidden">For any queries, please contact us at your convenience.</p>
             </div>
           </div>

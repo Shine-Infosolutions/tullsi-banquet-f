@@ -3,7 +3,7 @@ import axios from 'axios'
 
 // Configure axios
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://shine-banquet-hotel-backend.vercel.app',
+  baseURL: import.meta.env.VITE_API_URL || 'https://tulsi-banquet-backend.vercel.app',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json'

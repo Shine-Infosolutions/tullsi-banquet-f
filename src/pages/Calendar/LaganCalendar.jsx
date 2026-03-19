@@ -314,7 +314,7 @@ function LaganCalendar({ setSidebarOpen }) {
   const fetchBookings = async () => {
     try {
       console.log('Fetching bookings...');
-      const response = await fetch('https://shine-banquet-hotel-backend.vercel.app/api/bookings/');
+      const response = await fetch('https://tulsi-banquet-backend.vercel.app/api/bookings/');
       const data = await response.json();
       
       let bookingsArray = [];

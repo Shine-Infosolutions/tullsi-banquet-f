@@ -54,14 +54,14 @@ export const useMenuData = (foodType) => {
           }
           
           setMenuData({
-            hotel_name: "SHINE",
+            hotel_name: "TULSI",
             menu_name: `ROYAL ${foodType.toUpperCase()} MENU`,
             categories
           });
         } else {
           // Set empty structure if no data
           setMenuData({
-            hotel_name: "SHINE",
+            hotel_name: "TULSI",
             menu_name: `ROYAL ${foodType.toUpperCase()} MENU`,
             categories: []
           });
@@ -71,7 +71,7 @@ export const useMenuData = (foodType) => {
         console.error('Error response:', err.response);
         // Set empty structure on error
         setMenuData({
-          hotel_name: "SHINE",
+          hotel_name: "TULSI",
           menu_name: `ROYAL ${foodType.toUpperCase()} MENU`,
           categories: []
         });

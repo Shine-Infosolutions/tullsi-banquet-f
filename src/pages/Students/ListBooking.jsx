@@ -231,7 +231,7 @@ const ListBooking = ({ setSidebarOpen }) => {
 
     try {
       const response = await axios.put(
-        `https://shine-banquet-hotel-backend.vercel.app/little/achiver/update-status/${id}`,
+        `https://tulsi-banquet-backend.vercel.app/little/achiver/update-status/${id}`,
         { status: updatedStatus }
       );
       
@@ -548,7 +548,7 @@ const ListBooking = ({ setSidebarOpen }) => {
                                   alert("Invalid phone number for WhatsApp. Must be 10 digits (India) or 12 digits with country code.");
                                   return;
                                 }
-                                const message = `🌟 *Welcome to Hotel SHINE* 🌟\n\nHere's your booking confirmation:\n\n📅 *Date:* ${new Date(item.startDate).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}\n⏰ *Time:* ${item.time || "To be confirmed"}\n👨👩👧👦 *Guest Name:* ${item.name}\n📞 *Contact:* ${item.number}\n🍽️ *Plan:* ${item.ratePlan}\n🥗 *Food Type:* ${item.foodType}\n🏛️ *Hall/Area:* ${item.hall}\n👥 *Pax:* ${item.pax || "To be confirmed"}\n🔄 *Status:* ${item.bookingStatus}\n\n💰 *Payment Details:*\n💵 *Total Amount:* ₹${item.total || "To be confirmed"}\n💳 *Advance Paid:* ₹${item.advance}\n💸 *Balance Due:* ₹${item.balance || (item.total - item.advance) || "To be confirmed"}\n\n📍 *Venue Address:* Medical Road, Gorakhpur\n\nThank you for choosing us! We look forward to serving you. 🙏\n\n`;
+                                const message = `🌟 *Welcome to Tulsi Banquet* 🌟\n\nHere's your booking confirmation:\n\n📅 *Date:* ${new Date(item.startDate).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}\n⏰ *Time:* ${item.time || "To be confirmed"}\n👨👩👧👦 *Guest Name:* ${item.name}\n📞 *Contact:* ${item.number}\n🍽️ *Plan:* ${item.ratePlan}\n🥗 *Food Type:* ${item.foodType}\n🏛️ *Hall/Area:* ${item.hall}\n👥 *Pax:* ${item.pax || "To be confirmed"}\n🔄 *Status:* ${item.bookingStatus}\n\n💰 *Payment Details:*\n💵 *Total Amount:* ₹${item.total || "To be confirmed"}\n💳 *Advance Paid:* ₹${item.advance}\n💸 *Balance Due:* ₹${item.balance || (item.total - item.advance) || "To be confirmed"}\n\n📍 *Venue Address:* Medical Road, Gorakhpur\n\nThank you for choosing us! We look forward to serving you. 🙏\n\n`;
                                 const whatsappUrl = `https://web.whatsapp.com/send/?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
                                 window.open(whatsappUrl, "_blank");
                               }}
@@ -680,7 +680,7 @@ const ListBooking = ({ setSidebarOpen }) => {
                                       alert("Invalid phone number for WhatsApp. Must be 10 digits (India) or 12 digits with country code.");
                                       return;
                                     }
-                                    const message = `🌟 *Welcome to Hotel SHINE!* 🌟\n\nHere's your booking confirmation:\n\n📅 *Date:* ${new Date(item.startDate).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}\n⏰ *Time:* ${item.time || "To be confirmed"}\n👨👩👧👦 *Guest Name:* ${item.name}\n📞 *Contact:* ${item.number}\n🍽️ *Plan:* ${item.ratePlan}\n🥗 *Food Type:* ${item.foodType}\n🏛️ *Hall/Area:* ${item.hall}\n👥 *Pax:* ${item.pax || "To be confirmed"}\n🔄 *Status:* ${item.bookingStatus}\n\n💰 *Payment Details:*\n💵 *Total Amount:* ₹${item.total || "To be confirmed"}\n💳 *Advance Paid:* ₹${item.advance}\n💸 *Balance Due:* ₹${item.balance || (item.total - item.advance) || "To be confirmed"}\n\n📍 *Venue Address:* Medical Road, Gorakhpur\n\nThank you for choosing us! We look forward to serving you. 🙏\n\n`;
+                                    const message = `🌟 *Welcome to Tulsi Banquet!* 🌟\n\nHere's your booking confirmation:\n\n📅 *Date:* ${new Date(item.startDate).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}\n⏰ *Time:* ${item.time || "To be confirmed"}\n👨👩👧👦 *Guest Name:* ${item.name}\n📞 *Contact:* ${item.number}\n🍽️ *Plan:* ${item.ratePlan}\n🥗 *Food Type:* ${item.foodType}\n🏛️ *Hall/Area:* ${item.hall}\n👥 *Pax:* ${item.pax || "To be confirmed"}\n🔄 *Status:* ${item.bookingStatus}\n\n💰 *Payment Details:*\n💵 *Total Amount:* ₹${item.total || "To be confirmed"}\n💳 *Advance Paid:* ₹${item.advance}\n💸 *Balance Due:* ₹${item.balance || (item.total - item.advance) || "To be confirmed"}\n\n📍 *Venue Address:* Medical Road, Gorakhpur\n\nThank you for choosing us! We look forward to serving you. 🙏\n\n`;
                                     const whatsappUrl = `https://web.whatsapp.com/send/?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
                                     window.open(whatsappUrl, "_blank");
                                   }}

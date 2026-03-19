@@ -20,7 +20,7 @@ const CustomerMenuChange = () => {
       setError(null);
       try {
         const res = await axios.get(
-          `https://shine-banquet-hotel-backend.vercel.app/api/menu/all/${customerRef}`
+          `https://tulsi-banquet-backend.vercel.app/api/menu/all/${customerRef}`
         );
         setBooking(res.data.booking);
         console.log(res.data.booking);
@@ -38,7 +38,7 @@ const CustomerMenuChange = () => {
     try {
       setLoading(true);
       await axios.put(
-        `https://shine-banquet-hotel-backend.vercel.app/api/menu/update/${customerRef}`,
+        `https://tulsi-banquet-backend.vercel.app/api/menu/update/${customerRef}`,
         { categorizedMenu }
       );
       toast.success("Menu updated successfully!");
