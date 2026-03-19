@@ -1,0 +1,16 @@
+{
+  "name": "Regalia Hotel - Banquet Management",
+  "short_name": "Regalia Banquet",
+  "description": "Hotel banquet booking and management system",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#d97706",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
