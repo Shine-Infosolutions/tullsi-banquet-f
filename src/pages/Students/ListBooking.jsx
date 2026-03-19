@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
 import { AiFillFileExcel } from "react-icons/ai";
 import { FiSearch, FiX, FiPlus, FiEdit, FiEye, FiFileText, FiTrash2, FiWifi, FiWifiOff, FiMenu } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import ChefPDFPreview from "../ChefPDFPreview";
+import { bookingAPI } from '../../services/api';
 
 const debounce = (func, delay) => {
   let timeoutId;
@@ -45,68 +45,38 @@ const ListBooking = ({ setSidebarOpen }) => {
 
   const fetchUsers = () => {
     setLoading(true);
-    try {
-      axios
-        .get(
-          `https://shine-banquet-hotel-backend.vercel.app/api/bookings/pg?page=${currentPage}`
-        )
-        .then((res) => {
-          if (res.data) {
-            const processedData = res.data.data.map((item) => {
-              // Calculate total advance from array
-              const totalAdvance = Array.isArray(item.advance) 
-                ? item.advance.reduce((sum, payment) => sum + (payment.amount || 0), 0)
-                : (typeof item.advance === 'number' ? item.advance : 0);
-              
-              return {
-                ...item,
-                advance: totalAdvance,
-                total: item.total ?? 0,
-                balance: item.balance ?? 0,
-              };
-            }).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-
-            console.log(processedData);
-            setUserData(processedData);
-            setTotalPages(res.data.total);
-            setLoading(false);
-          }
-        })
-        .catch((err) => {
-          console.error('Fetch Users Error:', err);
-          alert('Failed to load bookings. Please try again later.');
+    bookingAPI.getPaginated(currentPage)
+      .then((res) => {
+        if (res.data) {
+          const processedData = res.data.data.map((item) => {
+            const totalAdvance = Array.isArray(item.advance)
+              ? item.advance.reduce((sum, payment) => sum + (payment.amount || 0), 0)
+              : (typeof item.advance === 'number' ? item.advance : 0);
+            return { ...item, advance: totalAdvance, total: item.total ?? 0, balance: item.balance ?? 0 };
+          }).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+          setUserData(processedData);
+          setTotalPages(res.data.total);
           setLoading(false);
-        });
-    } catch (error) {
-      console.log(error);
-      setLoading(false);
-    }
+        }
+      })
+      .catch((err) => {
+        console.error('Fetch Users Error:', err);
+        alert('Failed to load bookings. Please try again later.');
+        setLoading(false);
+      });
   };
 
   const fetchAllData = () => {
-    try {
-      axios
-        .get(`https://shine-banquet-hotel-backend.vercel.app/api/bookings`)
-        .then((res) => {
-          if (res.data) {
-            console.log("All Data:", res.data);
-            setAllData(res.data); // All record
-          }
-        })
-        .catch((err) => {
-          console.error("All Data Error:", err);
-          alert('Failed to load all data. Please try again later.');
-        });
-    } catch (error) {
-      console.log("All Data Try-Catch Error:", error);
-    }
+    bookingAPI.getAll()
+      .then((res) => {
+        if (res.data) setAllData(res.data);
+      })
+      .catch((err) => {
+        console.error('All Data Error:', err);
+      });
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    }
     fetchAllData();
     fetchUsers();
   }, [currentPage]);
@@ -126,25 +96,13 @@ const ListBooking = ({ setSidebarOpen }) => {
   const handleDelete = async (id) => {
     setLoading(true);
     try {
-      axios
-        .delete(`https://shine-banquet-hotel-backend.vercel.app/api/bookings/delete/${id}`)
-        .then((res) => {
-          console.log(res);
-          if (res.data) {
-            alert('Booking deleted successfully');
-            fetchUsers();
-          }
-        })
-        .catch((error) => {
-          console.log(error);
-          alert(error.response?.data?.message || 'Failed to delete booking');
-          setLoading(false);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+      await bookingAPI.delete(id);
+      alert('Booking deleted successfully');
+      fetchUsers();
     } catch (error) {
       console.log(error);
+      alert(error.response?.data?.message || 'Failed to delete booking');
+    } finally {
       setLoading(false);
     }
   };
@@ -174,25 +132,16 @@ const ListBooking = ({ setSidebarOpen }) => {
   };
 
   const handleSearch = async () => {
-    if (searchQuery.trim() !== "") {
+    if (searchQuery.trim() !== '') {
       setLoading(true);
       try {
-        const response = await axios.get(
-          `https://shine-banquet-hotel-backend.vercel.app/api/bookings/search?q=${encodeURIComponent(searchQuery)}`
-        );
-        
+        const response = await bookingAPI.search(encodeURIComponent(searchQuery));
         let dataArray = [];
-        
         if (response.data) {
-          if (Array.isArray(response.data)) {
-            dataArray = response.data;
-          } else if (response.data.success && Array.isArray(response.data.data)) {
-            dataArray = response.data.data;
-          } else if (response.data.data && Array.isArray(response.data.data)) {
-            dataArray = response.data.data;
-          }
+          if (Array.isArray(response.data)) dataArray = response.data;
+          else if (response.data.success && Array.isArray(response.data.data)) dataArray = response.data.data;
+          else if (response.data.data && Array.isArray(response.data.data)) dataArray = response.data.data;
         }
-        
         setUserData(dataArray);
         setTotalPages(dataArray.length);
       } catch (error) {

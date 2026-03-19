@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import axios from "axios";
+import { bookingAPI, menuAPI } from '../../services/api';
 import {
   FaUser,
   FaPhone,
@@ -227,13 +227,11 @@ const UpdateBooking = () => {
 
   const fetchBookingDetail = async () => {
     try {
-      // Fetch booking data
-      const bookingResponse = await axios.get(`https://shine-banquet-hotel-backend.vercel.app/api/bookings/get/${id}`);
-      
-      // Fetch associated menu data
+      const bookingResponse = await bookingAPI.getById(id);
+
       let categorizedMenu = null;
       try {
-        const menuResponse = await axios.get(`https://shine-banquet-hotel-backend.vercel.app/api/menus/${id}`);
+        const menuResponse = await menuAPI.getByBookingId(id);
         const rawMenuData = menuResponse.data?.data || menuResponse.data || null;
         categorizedMenu = rawMenuData?.categories || rawMenuData || null;
       } catch (menuErr) {
@@ -531,8 +529,7 @@ const UpdateBooking = () => {
     let updatedStaffEditCount = booking.staffEditCount;
     if (role !== "Admin") {
       // Get original menu from server to compare
-      axios
-        .get(`https://shine-banquet-hotel-backend.vercel.app/api/bookings/get/${id}`)
+      bookingAPI.getById(id)
         .then((res) => {
           const originalMenu = res.data.categorizedMenu;
           const isMenuChanged =
@@ -614,8 +611,7 @@ const UpdateBooking = () => {
 
 
 
-    axios
-      .put(`https://shine-banquet-hotel-backend.vercel.app/api/bookings/update/${id}`, payload)
+    bookingAPI.update(id, payload)
       .then((res) => {
         if (res.data) {
 
@@ -1672,11 +1668,12 @@ const UpdateBooking = () => {
                 </div>
                 <MenuSelector
                   initialItems={
-                    booking.menuItems && booking.menuItems.length > 0 
-                      ? booking.menuItems 
-                      : booking.categorizedMenu?.categories
-                        ? Object.values(booking.categorizedMenu.categories)
-                            .flat()
+                    booking.menuItems && booking.menuItems.length > 0
+                      ? booking.menuItems
+                      : booking.categorizedMenu
+                        ? Object.entries(booking.categorizedMenu)
+                            .filter(([key]) => !["_id", "bookingRef", "createdAt", "updatedAt", "__v", "customerRef"].includes(key))
+                            .flatMap(([, arr]) => arr)
                             .filter((item) => typeof item === "string")
                         : []
                   }

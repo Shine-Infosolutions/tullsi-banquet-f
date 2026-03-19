@@ -41,12 +41,21 @@ export const menuAPI = {
   updateByCustomerRef: (customerRef, data) => api.put(`/api/menus/update/${customerRef}`, data),
 }
 
+// Menu Item APIs
+export const menuItemAPI = {
+  getAll: (params = '') => api.get(`/api/menu-items${params}`),
+  create: (data) => api.post('/api/menu-items', data),
+  update: (id, data) => api.put(`/api/menu-items/${id}`, data),
+  delete: (id) => api.delete(`/api/menu-items/${id}`),
+}
+
 // Plan Limit APIs
 export const planLimitAPI = {
   getAll: () => api.get('/api/plan-limits/get'),
   getFormatted: () => api.get('/api/plan-limits/formatted'),
   getByPlan: (ratePlan, foodType) => api.get(`/api/plan-limits/${ratePlan}/${foodType}`),
   upsert: (data) => api.post('/api/plan-limits', data),
+  delete: (id) => api.delete(`/api/plan-limits/${id}`),
   initialize: () => api.post('/api/plan-limits/initialize'),
 }
 

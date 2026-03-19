@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FaTrash } from 'react-icons/fa';
 import { FiPlus, FiEdit2, FiX, FiLayers } from 'react-icons/fi';
+import { categoryAPI, planLimitAPI } from '../services/api';
 
 const PlanLimitManager = () => {
   const [limits, setLimits] = useState([]);
@@ -12,17 +13,13 @@ const PlanLimitManager = () => {
     try {
       setLoading(true);
       const [limitsRes, categoriesRes] = await Promise.all([
-        fetch('https://shine-banquet-hotel-backend.vercel.app/api/plan-limits/get'),
-        fetch('https://shine-banquet-hotel-backend.vercel.app/api/categories/all')
+        planLimitAPI.getAll(),
+        categoryAPI.getAll()
       ]);
-      if (limitsRes.ok) {
-        const data = await limitsRes.json();
-        setLimits(data.success ? data.data : []);
-      }
-      if (categoriesRes.ok) {
-        const data = await categoriesRes.json();
-        setCategories(Array.isArray(data) ? data : []);
-      }
+      const limitsData = limitsRes.data;
+      setLimits(limitsData.success ? limitsData.data : []);
+      const categoriesData = categoriesRes.data;
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -34,22 +31,10 @@ const PlanLimitManager = () => {
 
   const handleSave = async (planData) => {
     try {
-      const isEditing = planData._id;
-      const url = isEditing
-        ? `https://shine-banquet-hotel-backend.vercel.app/api/plan-limits/${planData._id}`
-        : 'https://shine-banquet-hotel-backend.vercel.app/api/plan-limits';
-      const response = await fetch(url, {
-        method: isEditing ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(planData)
-      });
-      if (response.ok) {
-        setEditingPlan(null);
-        fetchLimits();
-      } else {
-        const err = await response.json();
-        alert(err.message || 'Failed to save plan limits');
-      }
+      const { _id, createdAt, updatedAt, __v, ...cleanData } = planData;
+      await planLimitAPI.upsert(cleanData);
+      setEditingPlan(null);
+      fetchLimits();
     } catch (error) {
       alert('Failed to save plan limits');
     }
@@ -57,8 +42,8 @@ const PlanLimitManager = () => {
 
   const handleDelete = async (plan) => {
     try {
-      const response = await fetch(`https://shine-banquet-hotel-backend.vercel.app/api/plan-limits/${plan._id}`, { method: 'DELETE' });
-      if (response.ok) fetchLimits();
+      await planLimitAPI.delete(plan._id);
+      fetchLimits();
     } catch (error) {
       alert('Failed to delete plan');
     }
@@ -78,9 +63,8 @@ const PlanLimitManager = () => {
     }));
 
     useEffect(() => {
-      fetch('https://shine-banquet-hotel-backend.vercel.app/api/categories/all')
-        .then(r => r.ok ? r.json() : [])
-        .then(data => setLocalCategories(Array.isArray(data) ? data : []))
+      categoryAPI.getAll()
+        .then(res => setLocalCategories(Array.isArray(res.data) ? res.data : []))
         .catch(() => setLocalCategories([]));
     }, []);
 
@@ -90,16 +74,10 @@ const PlanLimitManager = () => {
 
     const handleCreateCategory = async (categoryData) => {
       try {
-        const response = await fetch('https://shine-banquet-hotel-backend.vercel.app/api/categories/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(categoryData)
-        });
-        if (response.ok) {
-          setShowCategoryForm(false);
-          const res = await fetch('https://shine-banquet-hotel-backend.vercel.app/api/categories/all');
-          if (res.ok) setLocalCategories(await res.json());
-        }
+        await categoryAPI.create(categoryData);
+        setShowCategoryForm(false);
+        const res = await categoryAPI.getAll();
+        setLocalCategories(Array.isArray(res.data) ? res.data : []);
       } catch (error) {
         alert('Failed to create category');
       }
@@ -108,16 +86,14 @@ const PlanLimitManager = () => {
     const handleDeleteCategory = async (categoryId) => {
       if (!window.confirm('Delete this category?')) return;
       try {
-        const response = await fetch(`https://shine-banquet-hotel-backend.vercel.app/api/categories/delete/${categoryId}`, { method: 'DELETE' });
-        if (response.ok) {
-          const res = await fetch('https://shine-banquet-hotel-backend.vercel.app/api/categories/all');
-          if (res.ok) setLocalCategories(await res.json());
-          setFormData(prev => {
-            const newLimits = { ...prev.limits };
-            delete newLimits[categoryId];
-            return { ...prev, limits: newLimits };
-          });
-        }
+        await categoryAPI.delete(categoryId);
+        const res = await categoryAPI.getAll();
+        setLocalCategories(Array.isArray(res.data) ? res.data : []);
+        setFormData(prev => {
+          const newLimits = { ...prev.limits };
+          delete newLimits[categoryId];
+          return { ...prev, limits: newLimits };
+        });
       } catch (error) {
         alert('Failed to delete category');
       }
@@ -226,7 +202,10 @@ const PlanLimitManager = () => {
                     <input
                       type="number"
                       min="0"
-                      value={formData.limits?.[category._id] || formData.limits?.[category.cateName] || 0}
+                      value={(() => {
+                        const key = category.cateName.toUpperCase().replace(/\s+/g, '_');
+                        return formData.limits?.[key] || formData.limits?.[category._id] || formData.limits?.[category.cateName] || 0;
+                      })()}
                       onChange={(e) => handleLimitChange(category._id, e.target.value)}
                       className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c3ad6b] bg-white"
                     />
@@ -314,10 +293,16 @@ const PlanLimitManager = () => {
               {/* Card Body */}
               <div className="px-5 py-4 space-y-2">
                 {Object.entries(limit.limits || {}).map(([categoryKey, value]) => {
-                  const category = categories.find(cat => cat._id === categoryKey || cat.cateName === categoryKey);
+                  const category = categories.find(
+                    cat =>
+                      cat._id === categoryKey ||
+                      cat.cateName === categoryKey ||
+                      cat.cateName.toUpperCase().replace(/\s+/g, '_') === categoryKey
+                  );
+                  const displayName = category?.cateName || categoryKey.replace(/_/g, ' ');
                   return (
                     <div key={categoryKey} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 truncate mr-2">{category?.cateName || categoryKey}</span>
+                      <span className="text-sm text-gray-600 truncate mr-2">{displayName}</span>
                       <span className="text-sm font-bold text-[#c3ad6b] bg-[#c3ad6b]/10 px-2.5 py-0.5 rounded-full flex-shrink-0">{value}</span>
                     </div>
                   );

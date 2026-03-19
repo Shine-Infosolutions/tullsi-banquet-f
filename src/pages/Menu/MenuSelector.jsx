@@ -266,85 +266,45 @@ const MenuSelector = ({
   const handleSelectItem = (item) => {
     setSelectedItems(prev => {
       const isSelected = prev.includes(item);
-      if (isSelected) {
-        const newItems = prev.filter(i => i !== item);
-        
-        // Auto-save immediately when item is removed
-        setTimeout(() => {
-          if (onSave) {
-            const categorizedMenu = {};
-            newItems.forEach(selectedItem => {
-              const itemData = menuItems.find(mi => mi.name === selectedItem);
-              if (itemData?.category && typeof itemData.category === 'string') {
-                const match = itemData.category.match(/cateName:\s*['"]([^'"]+)['"]/); 
-                if (match) {
-                  const categoryName = match[1];
-                  if (!categorizedMenu[categoryName]) {
-                    categorizedMenu[categoryName] = [];
-                  }
-                  categorizedMenu[categoryName].push(selectedItem);
-                }
-              }
-            });
-            onSave(newItems, categorizedMenu);
-          }
-        }, 0);
-        
-        return newItems;
-      }
-      
-      // Skip limit checks for Admin users
-      if (!isAdmin) {
-        // Find matching plan limit based on foodType and ratePlan
-        const matchingPlan = Array.isArray(planLimits) 
+      const newItems = isSelected ? prev.filter(i => i !== item) : [...prev, item];
+
+      if (!isSelected && !isAdmin) {
+        const matchingPlan = Array.isArray(planLimits)
           ? planLimits.find(plan => plan.foodType === foodType && plan.ratePlan === ratePlan)
           : null;
-        
         const categoryLimit = matchingPlan?.limits?.[currentCategory];
-        
         if (categoryLimit) {
           const currentCategorySelectedCount = prev.filter(selectedItem => {
             const selectedItemData = menuItems.find(mi => mi.name === selectedItem);
-            if (selectedItemData?.category && typeof selectedItemData.category === 'string') {
-              const match = selectedItemData.category.match(/cateName:\s*['"]([^'"]+)['"]/); 
-              return match && match[1] === currentCategory;
-            }
-            return false;
+            const categoryObj = categories.find(cat => cat._id === selectedItemData?.category);
+            return (categoryObj?.cateName || categoryObj?.name) === currentCategory;
           }).length;
-          
-
-          
-          if (currentCategorySelectedCount >= categoryLimit) {
-            return prev;
-          }
+          if (currentCategorySelectedCount >= categoryLimit) return prev;
         }
       }
-      
-      const newItems = [...prev, item];
-      
-      // Auto-save immediately when item is selected
+
       setTimeout(() => {
-        if (onSave) {
-          const categorizedMenu = {};
-          newItems.forEach(selectedItem => {
-            const itemData = menuItems.find(mi => mi.name === selectedItem);
-            if (itemData?.category && typeof itemData.category === 'string') {
-              const match = itemData.category.match(/cateName:\s*['"]([^'"]+)['"]/); 
-              if (match) {
-                const categoryName = match[1];
-                if (!categorizedMenu[categoryName]) {
-                  categorizedMenu[categoryName] = [];
-                }
-                categorizedMenu[categoryName].push(selectedItem);
-              }
-            }
-          });
-          onSave(newItems, categorizedMenu);
-        }
+        if (onSave) onSave(newItems, buildCategorizedMenu(newItems));
       }, 0);
-      
+
       return newItems;
     });
+  };
+
+  const buildCategorizedMenu = (items) => {
+    const categorizedMenu = {};
+    items.forEach(selectedItem => {
+      const itemData = menuItems.find(mi => mi.name === selectedItem);
+      if (itemData) {
+        const categoryObj = categories.find(cat =>
+          cat._id === itemData.category || cat.id === itemData.category
+        );
+        const categoryName = categoryObj?.cateName || categoryObj?.name || 'Other';
+        if (!categorizedMenu[categoryName]) categorizedMenu[categoryName] = [];
+        categorizedMenu[categoryName].push(selectedItem);
+      }
+    });
+    return categorizedMenu;
   };
 
   const handleAddCategory = async () => {
@@ -402,21 +362,7 @@ const MenuSelector = ({
       <div className="modal-box max-w-6xl h-[92vh] flex flex-col">
         <button className="btn btn-sm btn-circle btn-ghost absolute right-4 top-4" onClick={() => {
           if (onSave && selectedItems.length > 0) {
-            const categorizedMenu = {};
-            selectedItems.forEach(item => {
-              const itemData = menuItems.find(mi => mi.name === item);
-              if (itemData?.category && typeof itemData.category === 'string') {
-                const match = itemData.category.match(/cateName:\s*['"]([^'"]+)['"]/); 
-                if (match) {
-                  const categoryName = match[1];
-                  if (!categorizedMenu[categoryName]) {
-                    categorizedMenu[categoryName] = [];
-                  }
-                  categorizedMenu[categoryName].push(item);
-                }
-              }
-            });
-            onSave(selectedItems, categorizedMenu);
+            onSave(selectedItems, buildCategorizedMenu(selectedItems));
           }
           onClose();
         }}>✕</button>
@@ -582,11 +528,8 @@ const MenuSelector = ({
               if (limit) {
                 const currentCount = selectedItems.filter(item => {
                   const itemData = menuItems.find(mi => mi.name === item);
-                  if (itemData?.category && typeof itemData.category === 'string') {
-                    const match = itemData.category.match(/cateName:\s*['"]([^'"]+)['"]/); 
-                    return match && match[1] === currentCategory;
-                  }
-                  return false;
+                  const categoryObj = categories.find(cat => cat._id === itemData?.category);
+                  return (categoryObj?.cateName || categoryObj?.name) === currentCategory;
                 }).length;
                 return (
                   <div className="text-xs">

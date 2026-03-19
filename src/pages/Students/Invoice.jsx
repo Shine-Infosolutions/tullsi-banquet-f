@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
-import axios from "axios";
+import { bookingAPI, menuAPI } from '../../services/api';
 import { useReactToPrint } from "react-to-print";
 import Logo from "../../assets/tulsiblack.png";
 import WaterMark from "../../assets/tulsiblack.png";
@@ -59,17 +59,14 @@ const Invoice = () => {
     `
   });
 
-  const fetchMenuData = async (customerRef) => {
-    if (!customerRef) return;
+  const fetchMenuData = async (bookingId) => {
     try {
-      console.log('Fetching menu for customerRef:', customerRef);
-      const response = await axios.get(`https://shine-banquet-hotel-backend.vercel.app/api/menus/all/${customerRef}`);
-      console.log('Menu API Response:', response.data);
-      if (response.data && response.data.menu && response.data.menu.categories) {
-        setMenuData(response.data.menu.categories);
-      }
-    } catch (error) {
-      console.error('Error fetching menu data:', error);
+      const response = await menuAPI.getByBookingId(bookingId);
+      const raw = response.data?.data || response.data;
+      const categories = raw?.categories || raw;
+      if (categories && typeof categories === 'object') setMenuData(categories);
+    } catch {
+      // no menu found
     }
   };
 
@@ -89,35 +86,11 @@ const Invoice = () => {
   useEffect(() => {
     const fetchBooking = async () => {
       try {
-        // First try to get all bookings and find the specific one
-        const response = await axios.get(`https://shine-banquet-hotel-backend.vercel.app/api/bookings/`);
-        console.log('All Bookings API Response:', response.data);
-        
-        let allBookings = [];
-        
-        // Handle different response structures
-        if (response.data) {
-          if (Array.isArray(response.data)) {
-            allBookings = response.data;
-          } else if (response.data.success && Array.isArray(response.data.data)) {
-            allBookings = response.data.data;
-          } else if (response.data.data && Array.isArray(response.data.data)) {
-            allBookings = response.data.data;
-          }
-        }
-        
-        // Find the specific booking by ID
-        const bookingData = allBookings.find(booking => booking._id === id);
-        
-        if (!bookingData) {
-          throw new Error('Booking not found');
-        }
-        
-        // Set the booking data
+        const response = await bookingAPI.getById(id);
+        const bookingData = response.data?.data || response.data;
+        if (!bookingData) throw new Error('Booking not found');
         setBooking(bookingData);
-        
-        // Fetch menu data for this booking using customerRef
-        await fetchMenuData(bookingData.customerRef || bookingData._id);
+        await fetchMenuData(id);
       } catch (error) {
         console.error('Fetch error:', error);
         setError("Failed to load booking details. Please try again later.");

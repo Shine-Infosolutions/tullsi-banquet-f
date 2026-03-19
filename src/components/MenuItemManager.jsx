@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { FaTrash, FaEdit } from 'react-icons/fa'
 import { FiPlus, FiSearch, FiX } from 'react-icons/fi'
+import { categoryAPI, menuItemAPI } from '../services/api'
 
 const MenuItemManager = () => {
   const [menuItems, setMenuItems] = useState([])
@@ -30,13 +31,11 @@ const MenuItemManager = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('https://shine-banquet-hotel-backend.vercel.app/api/categories/all')
-      if (response.ok) {
-        const data = await response.json()
-        let categoriesData = Array.isArray(data) ? data : data.data || data.categories || []
-        setCategories(categoriesData)
-        return categoriesData
-      }
+      const res = await categoryAPI.getAll()
+      const data = res.data
+      let categoriesData = Array.isArray(data) ? data : data.data || data.categories || []
+      setCategories(categoriesData)
+      return categoriesData
     } catch (error) {
       console.error('Categories fetch error:', error)
     }
@@ -47,15 +46,10 @@ const MenuItemManager = () => {
   const fetchMenuItems = async () => {
     setLoading(true)
     try {
-      const response = await fetch('https://shine-banquet-hotel-backend.vercel.app/api/menu-items')
-      if (response.ok) {
-        const data = await response.json()
-        let items = Array.isArray(data) ? data : data.data || data.menuItems || []
-        setMenuItems(items)
-      } else {
-        setMessage('Failed to load menu items')
-        setMenuItems([])
-      }
+      const res = await menuItemAPI.getAll()
+      const data = res.data
+      let items = Array.isArray(data) ? data : data.data || data.menuItems || []
+      setMenuItems(items)
     } catch (error) {
       setMessage(`Connection error: ${error.message}`)
       setMenuItems([])
@@ -66,14 +60,11 @@ const MenuItemManager = () => {
   const fetchMenuItemsByFoodType = async (foodType) => {
     setLoading(true)
     try {
-      let url = 'https://shine-banquet-hotel-backend.vercel.app/api/menu-items'
-      if (foodType !== 'All') url += `?foodType=${foodType}`
-      const response = await fetch(url)
-      if (response.ok) {
-        const data = await response.json()
-        let items = Array.isArray(data) ? data : data.data || data.menuItems || []
-        setMenuItems(items)
-      }
+      const params = foodType !== 'All' ? `?foodType=${foodType}` : ''
+      const res = await menuItemAPI.getAll(params)
+      const data = res.data
+      let items = Array.isArray(data) ? data : data.data || data.menuItems || []
+      setMenuItems(items)
     } catch (error) {
       setMessage(`Error: ${error.message}`)
     }
@@ -89,21 +80,13 @@ const MenuItemManager = () => {
 
   const saveEdit = async () => {
     try {
-      const response = await fetch(`https://shine-banquet-hotel-backend.vercel.app/api/menu-items/${editingItem}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm)
-      })
-      if (response.ok) {
-        setMenuItems(menuItems.map(item => (item._id || item.id) === editingItem ? { ...item, ...editForm } : item))
-        setEditingItem(null)
-        setMessage('Item updated successfully!')
-        setTimeout(() => setMessage(''), 3000)
-      } else {
-        setMessage('Failed to update item')
-      }
+      await menuItemAPI.update(editingItem, editForm)
+      setMenuItems(menuItems.map(item => (item._id || item.id) === editingItem ? { ...item, ...editForm } : item))
+      setEditingItem(null)
+      setMessage('Item updated successfully!')
+      setTimeout(() => setMessage(''), 3000)
     } catch (error) {
-      setMessage(`Error: ${error.message}`)
+      setMessage('Failed to update item')
     }
   }
 
@@ -118,37 +101,25 @@ const MenuItemManager = () => {
       return
     }
     try {
-      const response = await fetch('https://shine-banquet-hotel-backend.vercel.app/api/menu-items', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newItemForm)
-      })
-      if (response.ok) {
-        setNewItemForm({ name: '', category: '', foodType: '' })
-        setMessage('Menu item added successfully!')
-        setTimeout(() => setMessage(''), 3000)
-        await fetchMenuItems()
-      } else {
-        setMessage('Failed to add menu item')
-      }
+      await menuItemAPI.create(newItemForm)
+      setNewItemForm({ name: '', category: '', foodType: '' })
+      setMessage('Menu item added successfully!')
+      setTimeout(() => setMessage(''), 3000)
+      await fetchMenuItems()
     } catch (error) {
-      setMessage(`Error: ${error.message}`)
+      setMessage('Failed to add menu item')
     }
   }
 
   const handleDelete = async (id) => {
     if (!id || !window.confirm('Are you sure you want to delete this item?')) return
     try {
-      const response = await fetch(`https://shine-banquet-hotel-backend.vercel.app/api/menu-items/${id}`, { method: 'DELETE' })
-      if (response.ok) {
-        setMenuItems(menuItems.filter(item => (item._id || item.id) !== id))
-        setMessage('Item deleted successfully!')
-        setTimeout(() => setMessage(''), 3000)
-      } else {
-        setMessage('Failed to delete item')
-      }
+      await menuItemAPI.delete(id)
+      setMenuItems(menuItems.filter(item => (item._id || item.id) !== id))
+      setMessage('Item deleted successfully!')
+      setTimeout(() => setMessage(''), 3000)
     } catch (error) {
-      setMessage(`Error: ${error.message}`)
+      setMessage('Failed to delete item')
     }
   }
 
