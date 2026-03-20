@@ -4,6 +4,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { bookingAPI, menuAPI, planLimitAPI } from '../../services/api';
+import { motion } from 'framer-motion';
 import {
   FaUser,
   FaPhone,
@@ -629,7 +630,12 @@ const UpdateBooking = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="min-h-screen bg-gray-50"
+    >
       <Toaster position="top-center" />
 
       {/* Header */}
@@ -1687,7 +1693,12 @@ const UpdateBooking = () => {
           {/* Menu Selection Modal */}
           {showMenuModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.25 }}
+                className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+              >
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-xl font-semibold">Select Menu Items</h3>
                   <button
@@ -1713,7 +1724,7 @@ const UpdateBooking = () => {
                   onSave={handleMenuSelection}
                   onClose={() => setShowMenuModal(false)}
                 />
-              </div>
+              </motion.div>
             </div>
           )}
 
@@ -1787,7 +1798,7 @@ const UpdateBooking = () => {
           </div>
         </div>
       </main>
-    </div>
+    </motion.div>
   );
 };
 

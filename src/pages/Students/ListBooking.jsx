@@ -5,6 +5,7 @@ import { FiSearch, FiX, FiPlus, FiEdit, FiEye, FiFileText, FiTrash2, FiWifi, FiW
 import { FaWhatsapp } from "react-icons/fa";
 import ChefPDFPreview from "../ChefPDFPreview";
 import { bookingAPI } from '../../services/api';
+import { motion } from "framer-motion";
 
 const debounce = (func, delay) => {
   let timeoutId;
@@ -368,10 +369,12 @@ const ListBooking = ({ setSidebarOpen }) => {
     );
   }
 
+  const fadeUp = { hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0 } };
+
   return (
-    <div className="min-h-screen w-full overflow-x-hidden" style={{backgroundColor: 'hsl(45, 100%, 95%)'}}>
+    <motion.div initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.08 } } }} className="min-h-screen w-full overflow-x-hidden" style={{backgroundColor: 'hsl(45, 100%, 95%)'}}>
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-50 w-full">
+      <motion.header variants={fadeUp} className="bg-white shadow-sm sticky top-0 z-50 w-full">
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 xs:gap-4">
             {/* Hamburger Menu for Mobile */}
@@ -389,11 +392,11 @@ const ListBooking = ({ setSidebarOpen }) => {
             {userRole === "Admin" ? "👑 Admin" : "👤 Staff"}
           </span>
         </div>
-      </header>
+      </motion.header>
       
       {/* Main Content */}
       <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-white rounded-lg shadow-md overflow-hidden w-full">
+        <motion.div variants={fadeUp} className="bg-white rounded-lg shadow-md overflow-hidden w-full">
           <div className="p-3 xs:p-4 sm:p-6 space-y-4 xs:space-y-6">
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
@@ -459,9 +462,12 @@ const ListBooking = ({ setSidebarOpen }) => {
                   {/* Card view for mobile */}
                   <div className="block sm:hidden">
                     <div className="grid grid-cols-1 gap-3 xs:gap-4">
-                      {userData?.map((item) => (
-                        <div
+                      {userData?.map((item, idx) => (
+                        <motion.div
                           key={item._id}
+                          initial={{ opacity: 0, y: 16 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.04, duration: 0.3 }}
                           className="bg-white rounded-lg xs:rounded-xl shadow p-3 xs:p-4 flex flex-col border border-gray-100"
                         >
                           <div className="flex items-center gap-2 xs:gap-3 mb-2">
@@ -565,7 +571,7 @@ const ListBooking = ({ setSidebarOpen }) => {
                               <FiTrash2 className="text-xs" /> Delete
                             </button>
                           </div>
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
                   </div>
@@ -592,8 +598,11 @@ const ListBooking = ({ setSidebarOpen }) => {
                       </thead>
                       <tbody className="text-gray-700">
                         {userData?.map((item, idx) => (
-                          <tr
+                          <motion.tr
                             key={item._id}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.04, duration: 0.25 }}
                             className={
                               idx % 2 === 0
                                 ? "bg-gray-50 hover:bg-[#c3ad6b]/20 transition-colors"
@@ -698,7 +707,7 @@ const ListBooking = ({ setSidebarOpen }) => {
                                 </button>
                               </div>
                             </td>
-                          </tr>
+                          </motion.tr>
                         ))}
                       </tbody>
                     </table>
@@ -815,9 +824,9 @@ const ListBooking = ({ setSidebarOpen }) => {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       </main>
-    </div>
+    </motion.div>
   );
 };
 

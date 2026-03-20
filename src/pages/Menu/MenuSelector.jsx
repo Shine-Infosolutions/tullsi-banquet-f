@@ -269,11 +269,8 @@ const MenuSelector = ({
       const newItems = isSelected ? prev.filter(i => i !== item) : [...prev, item];
 
       if (!isSelected && !isAdmin) {
-        const matchingPlan = Array.isArray(planLimits)
-          ? planLimits.find(plan => plan.foodType === foodType && plan.ratePlan === ratePlan)
-          : null;
-        const categoryLimit = matchingPlan?.limits?.[currentCategory];
-        if (categoryLimit) {
+        const categoryLimit = getCurrentCategoryLimit(currentCategory);
+        if (categoryLimit !== null) {
           const currentCategorySelectedCount = prev.filter(selectedItem => {
             const selectedItemData = menuItems.find(mi => mi.name === selectedItem);
             const categoryObj = categories.find(cat => cat._id === selectedItemData?.category);
@@ -358,12 +355,15 @@ const MenuSelector = ({
 
   // Get limit for current category from planLimits
   const getCurrentCategoryLimit = (catName) => {
-    if (foodType === 'Both') return null; // No limits enforced for Both
+    if (isAdmin || foodType === 'Both') return null;
     const matchingPlan = Array.isArray(planLimits)
       ? planLimits.find(p => p.foodType === foodType && p.ratePlan === ratePlan)
       : null;
-    const key = catName?.toUpperCase().replace(/\s+/g, '_');
-    return matchingPlan?.limits?.[key] ?? matchingPlan?.limits?.[catName] ?? null;
+    if (!matchingPlan?.limits) return null;
+    const catObj = categories.find(c => (c.cateName || c.name) === catName);
+    const catId = catObj?._id;
+    const snakeKey = catName?.toUpperCase().replace(/\s+/g, '_');
+    return matchingPlan.limits[catId] ?? matchingPlan.limits[snakeKey] ?? matchingPlan.limits[catName] ?? null;
   };
 
   if (loading) {

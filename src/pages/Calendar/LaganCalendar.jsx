@@ -13,6 +13,7 @@ import DashboardLoader from '../../DashboardLoader';
 import useWebSocket from '../../hooks/useWebSocket';
 import WebSocketStatus from '../../components/WebSocketStatus';
 import { bookingAPI } from '../../services/api';
+import { motion, AnimatePresence } from 'framer-motion';
 
 function LaganCalendar({ setSidebarOpen }) {
   const { axios } = useAppContext();
@@ -359,9 +360,11 @@ function LaganCalendar({ setSidebarOpen }) {
     return <DashboardLoader pageName="Event Calendar" />;
   }
 
+  const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } };
+
   return (
-    <div className="min-h-screen" style={{backgroundColor: 'hsl(45, 100%, 95%)'}}>
-      <header className="bg-white shadow-sm sticky top-0 z-50">
+    <motion.div initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.09 } } }} className="min-h-screen" style={{backgroundColor: 'hsl(45, 100%, 95%)'}}>
+      <motion.header variants={fadeUp} className="bg-white shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-3 xs:px-4 py-3 xs:py-4 flex items-center justify-between">
           <h1 className="text-lg xs:text-xl sm:text-2xl font-bold truncate" style={{color: 'hsl(45, 100%, 20%)'}}>
             Lagan Calendar
@@ -373,10 +376,10 @@ function LaganCalendar({ setSidebarOpen }) {
             {!isMobile && <WebSocketStatus />}
           </div>
         </div>
-      </header>
+      </motion.header>
 
       <main className="container mx-auto px-3 xs:px-4 py-4 xs:py-6">
-        <div className="bg-white rounded-lg xs:rounded-xl shadow-md overflow-hidden">
+        <motion.div variants={fadeUp} className="bg-white rounded-lg xs:rounded-xl shadow-md overflow-hidden">
           <div className="p-3 xs:p-4 sm:p-6">
             {/* Calendar Navigation */}
             <div className="bg-gradient-to-r from-[#c3ad6b]/10 to-[#c3ad6b]/5 rounded-xl p-4 mb-6">
@@ -463,10 +466,18 @@ function LaganCalendar({ setSidebarOpen }) {
               </Link>
             </div>
           </div>
-        </div>
+        </motion.div>
         
+        <AnimatePresence>
         {selectedDate && (
-          <div className="mt-4 xs:mt-6">
+          <motion.div
+            key={selectedDate}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.35 }}
+            className="mt-4 xs:mt-6"
+          >
             <div className="bg-white rounded-lg xs:rounded-xl shadow-md overflow-hidden">
               <div className="p-3 xs:p-4 sm:p-6">
                 <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 mb-3 xs:mb-4">
@@ -547,8 +558,11 @@ function LaganCalendar({ setSidebarOpen }) {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                     {displayBookings.map((b, i) => (
-                      <div
+                      <motion.div
                         key={i}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: i * 0.05, duration: 0.28 }}
                         className="bg-[#c3ad6b]/10 border border-[#c3ad6b]/20 rounded-lg p-3 hover:shadow-md transition-shadow"
                       >
                         <div className="font-semibold text-gray-800 mb-2 text-sm truncate">{b.name}</div>
@@ -561,34 +575,29 @@ function LaganCalendar({ setSidebarOpen }) {
                         </div>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => {
-                              if (b._id) navigate(`/banquet/update-booking/${b._id}`);
-                            }}
+                            onClick={() => { if (b._id) navigate(`/banquet/update-booking/${b._id}`); }}
                             className="flex-1 bg-[#c3ad6b] hover:bg-[#b39b5a] text-white px-2 py-1.5 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1"
                           >
-                            <FaEdit className="text-xs" />
-                            Edit
+                            <FaEdit className="text-xs" /> Edit
                           </button>
                           <button
-                            onClick={() => {
-                              if (b._id) navigate(`/banquet/invoice/${b._id}`);
-                            }}
+                            onClick={() => { if (b._id) navigate(`/banquet/invoice/${b._id}`); }}
                             className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-2 py-1.5 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1"
                           >
-                            <FaFileInvoice className="text-xs" />
-                            Invoice
+                            <FaFileInvoice className="text-xs" /> Invoice
                           </button>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 )}
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </main>
-    </div>
+    </motion.div>
   );
 }
 

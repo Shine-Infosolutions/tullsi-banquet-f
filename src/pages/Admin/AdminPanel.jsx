@@ -6,6 +6,7 @@ import PlanLimitManager from '../../components/PlanLimitManager';
 import useWebSocket from '../../hooks/useWebSocket';
 import { FaWifi } from 'react-icons/fa';
 import { MdSignalWifiOff } from 'react-icons/md';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState('menu-items');
@@ -59,41 +60,27 @@ const AdminPanel = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm">
         <div className="container mx-auto px-4 sm:px-6">
           <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
             <div className="flex flex-wrap gap-2 sm:gap-4 lg:gap-8">
-            <button
-              onClick={() => setActiveTab('menu-items')}
-              className={`py-3 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-                activeTab === 'menu-items'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Menu Items
-            </button>
-            <button
-              onClick={() => setActiveTab('plan-limits')}
-              className={`py-3 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-                activeTab === 'plan-limits'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Plan Limits
-            </button>
-            <button
-              onClick={() => setActiveTab('realtime-monitor')}
-              className={`py-3 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-                activeTab === 'realtime-monitor'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Real-time Monitor
-            </button>
+            {['menu-items', 'plan-limits', 'realtime-monitor'].map((tab, i) => (
+              <motion.button
+                key={tab}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.07 }}
+                onClick={() => setActiveTab(tab)}
+                className={`py-3 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
+                  activeTab === tab
+                    ? 'border-[#c3ad6b] text-[#8a7340]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {tab === 'menu-items' ? 'Menu Items' : tab === 'plan-limits' ? 'Plan Limits' : 'Real-time Monitor'}
+              </motion.button>
+            ))}
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
               <div className="flex items-center gap-2">
@@ -122,6 +109,14 @@ const AdminPanel = () => {
       </div>
 
       <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.28 }}
+          >
         {activeTab === 'menu-items' && <MenuItemManager />}
         {activeTab === 'plan-limits' && <PlanLimitManager />}
         {activeTab === 'realtime-monitor' && (
@@ -132,7 +127,13 @@ const AdminPanel = () => {
                 <p className="text-sm sm:text-base text-gray-500 italic">No recent activity</p>
               ) : (
                 realtimeActivity.map((activity) => (
-                  <div key={activity.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-gray-50 rounded-lg">
+                  <motion.div
+                    key={activity.id}
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-gray-50 rounded-lg"
+                  >
                     <div className="flex items-center space-x-3">
                       <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
                         activity.type === 'BOOKING_CREATED' ? 'bg-green-500' :
@@ -154,14 +155,16 @@ const AdminPanel = () => {
                       </div>
                     </div>
                     <span className="text-xs text-gray-500 flex-shrink-0">{activity.timestamp}</span>
-                  </div>
+                  </motion.div>
                 ))
               )}
             </div>
           </div>
         )}
+          </motion.div>
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

@@ -8,6 +8,7 @@ import DashboardLoader from "../../DashboardLoader";
 import useWebSocket from '../../hooks/useWebSocket';
 import { useAPI } from '../../hooks/useAPI';
 import { planLimitAPI } from '../../services/api';
+import { motion } from 'framer-motion';
 import {
   FaUser,
   FaArrowLeft,
@@ -416,7 +417,12 @@ const AddBooking = () => {
   const currentRate = getCurrentRateInfo();
 
   return (
-    <div className="flex-1 bg-gray-50">
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="flex-1 bg-gray-50"
+    >
       <Toaster position="top-center" />
 
       {/* Header */}
@@ -1518,7 +1524,12 @@ const AddBooking = () => {
       {/* Menu Selector Modal */}
       {showMenuSelector && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[90vh] overflow-hidden animate-scale-in">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.25 }}
+            className="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[90vh] overflow-hidden"
+          >
             <div className="p-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-800">
                 Select Menu Items
@@ -1554,10 +1565,10 @@ const AddBooking = () => {
                 ratePlan={form.ratePlan}
               />
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { FaUser, FaPhone, FaStickyNote, FaRegCalendarAlt, FaBars, FaSearch, FaFilter } from 'react-icons/fa'
 import { bookingAPI } from '../../services/api'
 import DashboardLoader from '../../DashboardLoader'
+import { motion, AnimatePresence } from 'framer-motion'
 
 function Calendar({ setSidebarOpen }) {
   const [pageLoading, setPageLoading] = useState(true)
@@ -339,10 +340,12 @@ function Calendar({ setSidebarOpen }) {
     return <DashboardLoader pageName="Calendar" />
   }
 
+  const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } };
+
   return (
-    <div className="min-h-screen" style={{backgroundColor: 'hsl(45, 100%, 95%)'}}>
+    <motion.div initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.09 } } }} className="min-h-screen" style={{backgroundColor: 'hsl(45, 100%, 95%)'}}>
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <motion.header variants={fadeUp} className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             {/* Hamburger Menu for Mobile */}
@@ -362,11 +365,11 @@ function Calendar({ setSidebarOpen }) {
             </span>
           )}
         </div>
-      </header>
+      </motion.header>
 
       {/* Main Content */}
       <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+        <motion.div variants={fadeUp} className="bg-white rounded-xl shadow-md overflow-hidden">
           <div className="p-3 sm:p-6">
             {/* Search and Filter */}
             <div className="mb-4 sm:mb-6">
@@ -433,7 +436,7 @@ function Calendar({ setSidebarOpen }) {
             </div>
 
             {/* Navigation */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <motion.div variants={fadeUp} className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
               <button
                 onClick={handlePrev}
                 className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-[#c3ad6b] hover:bg-[#b39b5a] text-white rounded-lg shadow font-semibold transition-colors text-sm sm:text-base"
@@ -449,7 +452,7 @@ function Calendar({ setSidebarOpen }) {
               >
                 Next →
               </button>
-            </div>
+            </motion.div>
 
             {/* Calendar */}
             <div className="overflow-x-auto bg-[#c3ad6b]/10 rounded-xl p-2 sm:p-4">
@@ -486,11 +489,19 @@ function Calendar({ setSidebarOpen }) {
               </Link>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Booking list for selected date */}
+        <AnimatePresence>
         {selectedDate && (
-          <div className="mt-4 sm:mt-6">
+          <motion.div
+            key={selectedDate}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.35 }}
+            className="mt-4 sm:mt-6"
+          >
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
               <div className="p-3 sm:p-6">
                 <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4" style={{color: 'hsl(45, 100%, 20%)'}}>
@@ -505,8 +516,11 @@ function Calendar({ setSidebarOpen }) {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {bookingsForDate.map((b, i) => (
-                      <div
+                      <motion.div
                         key={i}
+                        initial={{ opacity: 0, scale: 0.96 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: i * 0.05, duration: 0.3 }}
                         className="bg-[#c3ad6b]/10 border border-[#c3ad6b]/20 rounded-lg p-4 hover:shadow-md transition-shadow"
                       >
                         <div className="font-bold text-gray-800 mb-2">{b.name}</div>
@@ -520,16 +534,17 @@ function Calendar({ setSidebarOpen }) {
                             <div>📝 {b.notes}</div>
                           )}
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 )}
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </main>
-    </div>
+    </motion.div>
   )
 }
 
