@@ -436,23 +436,27 @@ function Calendar({ setSidebarOpen }) {
             </div>
 
             {/* Navigation */}
-            <motion.div variants={fadeUp} className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-              <button
-                onClick={handlePrev}
-                className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-[#c3ad6b] hover:bg-[#b39b5a] text-white rounded-lg shadow font-semibold transition-colors text-sm sm:text-base"
-              >
-                ← Previous
-              </button>
-              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-center" style={{color: 'hsl(45, 100%, 20%)'}}>
-                {monthNames[month]} {year}
-              </h2>
-              <button
-                onClick={handleNext}
-                className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-[#c3ad6b] hover:bg-[#b39b5a] text-white rounded-lg shadow font-semibold transition-colors text-sm sm:text-base"
-              >
-                Next →
-              </button>
-            </motion.div>
+            <div className="bg-gradient-to-r from-[#c3ad6b]/10 to-[#c3ad6b]/5 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  onClick={handlePrev}
+                  className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 bg-[#c3ad6b] hover:bg-[#b39b5a] text-white rounded-lg shadow-md font-semibold transition-all duration-200 text-sm sm:text-base whitespace-nowrap"
+                >
+                  <span>←</span>
+                  <span className="hidden xs:inline">Previous</span>
+                </button>
+                <h2 className="text-base sm:text-xl md:text-2xl font-bold text-center flex-1 min-w-0 truncate" style={{color: 'hsl(45, 100%, 20%)'}}>
+                  {monthNames[month]} {year}
+                </h2>
+                <button
+                  onClick={handleNext}
+                  className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 bg-[#c3ad6b] hover:bg-[#b39b5a] text-white rounded-lg shadow-md font-semibold transition-all duration-200 text-sm sm:text-base whitespace-nowrap"
+                >
+                  <span className="hidden xs:inline">Next</span>
+                  <span>→</span>
+                </button>
+              </div>
+            </div>
 
             {/* Calendar */}
             <div className="overflow-x-auto bg-[#c3ad6b]/10 rounded-xl p-2 sm:p-4">

@@ -7,6 +7,7 @@ import {
   FaRegCalendarAlt,
   FaEdit,
   FaFileInvoice,
+  FaBars,
 } from "react-icons/fa";
 import { useAppContext } from '../../context/AppContext';
 import DashboardLoader from '../../DashboardLoader';
@@ -366,9 +367,17 @@ function LaganCalendar({ setSidebarOpen }) {
     <motion.div initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.09 } } }} className="min-h-screen" style={{backgroundColor: 'hsl(45, 100%, 95%)'}}>
       <motion.header variants={fadeUp} className="bg-white shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-3 xs:px-4 py-3 xs:py-4 flex items-center justify-between">
-          <h1 className="text-lg xs:text-xl sm:text-2xl font-bold truncate" style={{color: 'hsl(45, 100%, 20%)'}}>
-            Lagan Calendar
-          </h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen && setSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-lg bg-[#c3ad6b] text-white hover:bg-[#b39b5a] transition-colors"
+            >
+              <FaBars className="w-5 h-5" />
+            </button>
+            <h1 className="text-lg xs:text-xl sm:text-2xl font-bold truncate" style={{color: 'hsl(45, 100%, 20%)'}}>
+              Lagan Calendar
+            </h1>
+          </div>
           <div className="flex items-center gap-2 xs:gap-4">
             <span className="inline-flex items-center gap-1 xs:gap-2 px-2 xs:px-3 py-1 rounded-full bg-[#c3ad6b]/10 text-[#c3ad6b] font-semibold text-xs xs:text-sm shadow">
               {userRole === "Admin" ? "👑 Admin" : "👤 Staff"}
@@ -382,31 +391,31 @@ function LaganCalendar({ setSidebarOpen }) {
         <motion.div variants={fadeUp} className="bg-white rounded-lg xs:rounded-xl shadow-md overflow-hidden">
           <div className="p-3 xs:p-4 sm:p-6">
             {/* Calendar Navigation */}
-            <div className="bg-gradient-to-r from-[#c3ad6b]/10 to-[#c3ad6b]/5 rounded-xl p-4 mb-6">
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="bg-gradient-to-r from-[#c3ad6b]/10 to-[#c3ad6b]/5 rounded-xl p-3 sm:p-4 mb-6">
+              <div className="flex items-center justify-between gap-2">
                 <button
                   onClick={handlePrev}
-                  className="flex items-center gap-2 px-6 py-3 bg-[#c3ad6b] hover:bg-[#b39b5a] text-white rounded-lg shadow-md font-semibold transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5"
+                  className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 bg-[#c3ad6b] hover:bg-[#b39b5a] text-white rounded-lg shadow-md font-semibold transition-all duration-200 text-sm sm:text-base whitespace-nowrap"
                 >
-                  <span className="text-lg">←</span>
-                  <span>Previous</span>
+                  <span>←</span>
+                  <span className="hidden xs:inline">Previous</span>
                 </button>
-                
-                <div className="text-center">
-                  <h2 className="text-2xl sm:text-3xl font-bold mb-1" style={{color: 'hsl(45, 100%, 20%)'}}>
+
+                <div className="text-center flex-1 min-w-0">
+                  <h2 className="text-base sm:text-2xl md:text-3xl font-bold leading-tight truncate" style={{color: 'hsl(45, 100%, 20%)'}}>
                     {monthNames[month]} {year}
                   </h2>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-xs sm:text-sm text-gray-600 hidden sm:block">
                     Auspicious Marriage Calendar
                   </div>
                 </div>
-                
+
                 <button
                   onClick={handleNext}
-                  className="flex items-center gap-2 px-6 py-3 bg-[#c3ad6b] hover:bg-[#b39b5a] text-white rounded-lg shadow-md font-semibold transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5"
+                  className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 bg-[#c3ad6b] hover:bg-[#b39b5a] text-white rounded-lg shadow-md font-semibold transition-all duration-200 text-sm sm:text-base whitespace-nowrap"
                 >
-                  <span>Next</span>
-                  <span className="text-lg">→</span>
+                  <span className="hidden xs:inline">Next</span>
+                  <span>→</span>
                 </button>
               </div>
             </div>
