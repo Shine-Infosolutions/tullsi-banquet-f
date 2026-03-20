@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
-import { bookingAPI, menuAPI } from '../../services/api';
+import { bookingAPI, menuAPI, menuItemAPI } from '../../services/api';
 import { useReactToPrint } from "react-to-print";
 import Logo from "../../assets/tulsiblack.png";
 import WaterMark from "../../assets/tulsiblack.png";
@@ -15,6 +15,8 @@ const Invoice = () => {
   const [error, setError] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [menuData, setMenuData] = useState(null);
+  const [allMenuItems, setAllMenuItems] = useState([]);
+  const [invoiceType, setInvoiceType] = useState('Veg'); // 'Veg' or 'Non-Veg'
   const printRef = useRef();
   const navigate = useNavigate();
 
@@ -70,6 +72,16 @@ const Invoice = () => {
     }
   };
 
+  const fetchAllMenuItems = async () => {
+    try {
+      const response = await menuItemAPI.getAll();
+      const items = response.data?.data || response.data || [];
+      setAllMenuItems(Array.isArray(items) ? items : []);
+    } catch {
+      // ignore
+    }
+  };
+
   const handleShare = () => {
     const message = `Hi ${booking.name}, here is your booking invoice from Tulsi Banquet. Please use Ctrl+P (or Cmd+P on Mac) to print/save as PDF, then share the PDF file.`;
     const whatsappUrl = `https://wa.me/${booking.whatsapp || booking.number}?text=${encodeURIComponent(message)}`;
@@ -90,7 +102,7 @@ const Invoice = () => {
         const bookingData = response.data?.data || response.data;
         if (!bookingData) throw new Error('Booking not found');
         setBooking(bookingData);
-        await fetchMenuData(id);
+        await Promise.all([fetchMenuData(id), fetchAllMenuItems()]);
       } catch (error) {
         console.error('Fetch error:', error);
         setError("Failed to load booking details. Please try again later.");
@@ -149,6 +161,32 @@ const Invoice = () => {
       </button>
 
       <div className="max-w-4xl mx-auto">
+        {booking.foodType === 'Both' && (
+          <div className="flex justify-center mb-4 print:hidden">
+            <div className="inline-flex rounded-lg border-2 border-[#c3ad6b] overflow-hidden">
+              <button
+                onClick={() => setInvoiceType('Veg')}
+                className={`px-6 py-2 font-semibold transition-colors ${
+                  invoiceType === 'Veg'
+                    ? 'bg-[#c3ad6b] text-white'
+                    : 'bg-white text-[#c3ad6b] hover:bg-[#c3ad6b]/10'
+                }`}
+              >
+                🥦 Veg Invoice
+              </button>
+              <button
+                onClick={() => setInvoiceType('Non-Veg')}
+                className={`px-6 py-2 font-semibold transition-colors border-l-2 border-[#c3ad6b] ${
+                  invoiceType === 'Non-Veg'
+                    ? 'bg-[#c3ad6b] text-white'
+                    : 'bg-white text-[#c3ad6b] hover:bg-[#c3ad6b]/10'
+                }`}
+              >
+                🍗 Non-Veg Invoice
+              </button>
+            </div>
+          </div>
+        )}
         <div className="flex justify-end gap-3 mb-4 print:hidden">
           <button
             onClick={handleShare}
@@ -224,7 +262,7 @@ const Invoice = () => {
                   <p><span className="font-medium">Date:</span> {formatDate(booking.startDate)}</p>
                   <p><span className="font-medium">Time:</span> {booking.time}</p>
                   <p><span className="font-medium">Hall:</span> {booking.hall}</p>
-                  <p><span className="font-medium">Guests:</span> {booking.pax} pax</p>
+                  <p><span className="font-medium">Guests:</span> {booking.foodType === 'Both' ? (invoiceType === 'Veg' ? `${booking.vegPax} pax (Veg)` : `${booking.nonVegPax} pax (Non-Veg)`) : `${booking.pax} pax`}</p>
                   <p><span className="font-medium">Status:</span> 
                     <span className={`ml-2 px-2 py-1 rounded text-xs font-semibold print:bg-transparent print:text-black print:px-0 print:py-0 ${
                       booking.bookingStatus === 'Confirmed' ? 'bg-green-100 text-green-800' :
@@ -269,36 +307,95 @@ const Invoice = () => {
                   </div>
                   <div>
                     <p className="font-medium text-gray-600 print:text-xs print:text-black">Rate per Pax</p>
-                    <p className="text-lg font-semibold text-[#c3ad6b] print:text-xs print:text-black">₹{booking.ratePerPax}</p>
+                    <p className="text-lg font-semibold text-[#c3ad6b] print:text-xs print:text-black">₹{
+                      booking.foodType === 'Both'
+                        ? (invoiceType === 'Veg' ? (booking.vegRate || 0) : (booking.nonVegRate || 0))
+                        : booking.ratePerPax
+                    }</p>
                   </div>
                 </div>
                 <div className="mt-4 print:mt-1">
-                  <p className="font-medium text-gray-600 mb-3 print:text-xs print:text-black print:mb-1 print:font-bold">Selected Menu Items ({booking.foodType})</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 print:grid-cols-2 print:gap-2">
-                    {(() => {
-                      const displayMenuData = menuData || booking.categorizedMenu;
-                      return (displayMenuData && typeof displayMenuData === 'object' && Object.keys(displayMenuData).length > 0) ? (
-                      Object.entries(displayMenuData)
-                        .filter(([key, items]) => !['_id', 'bookingRef', 'customerRef', 'createdAt', 'updatedAt', '__v'].includes(key) && Array.isArray(items) && items.length > 0)
-                        .map(([category, items]) => (
-                          <div key={category} className="p-2 print:p-1">
-                            <h4 className="font-medium text-[#c3ad6b] mb-1 text-xs print:text-xs print:text-black print:mb-0 print:font-bold">
-                              {category.replaceAll('_', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                            </h4>
-                            <div className="text-xs text-gray-600 print:text-xs print:text-black">
-                              {items.join(', ')}
-                            </div>
+                  <p className="font-medium text-gray-600 mb-3 print:text-xs print:text-black print:mb-1 print:font-bold">Selected Menu Items ({booking.foodType === 'Both' ? invoiceType : booking.foodType})</p>
+                  {(() => {
+                    const cm = booking.categorizedMenu;
+                    const displayMenuData = menuData || (cm?.categories ?? cm);
+                    const skip = ['_id', 'bookingRef', 'customerRef', 'createdAt', 'updatedAt', '__v'];
+
+                    // Build a lookup: itemName -> foodType using allMenuItems from DB
+                    const itemFoodTypeMap = {};
+                    allMenuItems.forEach(item => {
+                      const name = item.name || item.itemName;
+                      if (name) itemFoodTypeMap[name] = item.foodType || 'Veg';
+                    });
+
+                    const shouldShowInInvoice = (itemName, invoiceType) => {
+                      const ft = itemFoodTypeMap[itemName];
+                      // Items with foodType 'Both' appear in both invoices
+                      if (ft === 'Both') return true;
+                      // Otherwise match the invoice type
+                      if (invoiceType === 'Veg') return ft === 'Veg';
+                      if (invoiceType === 'Non-Veg') return ft === 'Non-Veg';
+                      return true;
+                    };
+
+                    if (!displayMenuData || typeof displayMenuData !== 'object' || Object.keys(displayMenuData).length === 0) {
+                      return booking.menuItems
+                        ? <div className="text-sm text-gray-600 print:text-xs print:text-black">{booking.menuItems}</div>
+                        : <span className="text-gray-500 text-sm italic">No menu items selected</span>;
+                    }
+
+                    const entries = Object.entries(displayMenuData).filter(([k, v]) => !skip.includes(k) && Array.isArray(v) && v.length > 0);
+
+                    if (booking.foodType === 'Both') {
+                      // Split each category's items by their individual foodType
+                      const filteredEntries = entries.map(([category, items]) => {
+                        const filtered = items.filter(item => shouldShowInInvoice(item, invoiceType));
+                        return [category, filtered];
+                      }).filter(([, items]) => items.length > 0);
+
+                      if (filteredEntries.length === 0) {
+                        return (
+                          <div className="text-center py-8 text-gray-400 text-sm italic">
+                            No {invoiceType} items found in menu
                           </div>
-                        ))
-                    ) : booking.menuItems ? (
-                      <div className="text-sm text-gray-600 print:text-xs print:text-black">
-                        {booking.menuItems}
-                      </div>
-                      ) : (
-                        <span className="text-gray-500 text-sm italic">No menu items selected</span>
+                        );
+                      }
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 print:grid-cols-2 print:gap-2">
+                          {filteredEntries.map(([category, items]) => (
+                            <div key={category} className="p-2 print:p-1">
+                              <h4 className="font-medium mb-1 text-xs print:mb-0 print:font-bold" style={{color:'#c3ad6b'}}>
+                                {category.replaceAll('_',' ')}
+                              </h4>
+                              <div className="text-xs text-gray-600 print:text-black">
+                                {items.map((item, i) => (
+                                  <span key={item}>
+                                    {i > 0 && ', '}
+                                    {item}
+                                    {itemFoodTypeMap[item] === 'Both' && (
+                                      <span className="ml-1 text-[10px] font-semibold text-[#c3ad6b] print:text-gray-500">(common)</span>
+                                    )}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       );
-                    })()}
-                  </div>
+                    }
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 print:grid-cols-2 print:gap-2">
+                        {entries.map(([category, items]) => (
+                          <div key={category} className="p-2 print:p-1">
+                            <h4 className="font-medium text-[#c3ad6b] mb-1 text-xs print:text-black print:mb-0 print:font-bold">
+                              {category.replaceAll('_',' ')}
+                            </h4>
+                            <div className="text-xs text-gray-600 print:text-black">{items.join(', ')}</div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -329,10 +426,24 @@ const Invoice = () => {
               </h3>
               <div className="bg-gray-50 rounded-lg p-6 print:bg-white print:p-2 print:border print:border-gray-300">
                 <div className="space-y-3 print:space-y-1 print:text-xs print:text-black">
-                  <div className="flex justify-between">
-                    <span>Subtotal ({booking.pax} pax × ₹{booking.ratePerPax})</span>
-                    <span>₹{(booking.pax * booking.ratePerPax).toFixed(2)}</span>
-                  </div>
+                  {booking.foodType === 'Both' ? (
+                    invoiceType === 'Veg' ? (
+                      <div className="flex justify-between text-green-700">
+                        <span>🥦 Veg ({booking.vegPax} pax × ₹{booking.vegRate || booking.ratePerPax})</span>
+                        <span>₹{((booking.vegPax) * (booking.vegRate || 0)).toFixed(2)}</span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between text-red-600">
+                        <span>🍗 Non-Veg ({booking.nonVegPax} pax × ₹{booking.nonVegRate || booking.ratePerPax})</span>
+                        <span>₹{((booking.nonVegPax) * (booking.nonVegRate || 0)).toFixed(2)}</span>
+                      </div>
+                    )
+                  ) : (
+                    <div className="flex justify-between">
+                      <span>Subtotal ({booking.pax} pax × ₹{booking.ratePerPax})</span>
+                      <span>₹{(booking.pax * booking.ratePerPax).toFixed(2)}</span>
+                    </div>
+                  )}
                   {booking.discount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Discount ({booking.discount}%)</span>
@@ -364,15 +475,55 @@ const Invoice = () => {
                   <div className="border-t border-gray-300 pt-3">
                     <div className="flex justify-between text-lg font-semibold">
                       <span>Total Amount</span>
-                      <span className="text-[#c3ad6b]">₹{booking.total}</span>
+                      <span className="text-[#c3ad6b]">₹{(() => {
+                        if (booking.foodType === 'Both') {
+                          const subtotal = invoiceType === 'Veg' 
+                            ? (booking.vegPax * (booking.vegRate || 0))
+                            : (booking.nonVegPax * (booking.nonVegRate || 0));
+                          const discountAmount = booking.discount > 0 ? (subtotal * booking.discount) / 100 : 0;
+                          const afterDiscount = subtotal - discountAmount;
+                          const proportion = invoiceType === 'Veg' 
+                            ? (booking.vegPax / booking.pax) 
+                            : (booking.nonVegPax / booking.pax);
+                          const extraCharges = ((booking.decorationCharge || 0) + (booking.musicCharge || 0) + (booking.extraRoomTotalPrice || 0)) * proportion;
+                          return (afterDiscount + extraCharges).toFixed(2);
+                        }
+                        return booking.total;
+                      })()}</span>
                     </div>
                     <div className="flex justify-between text-green-600">
                       <span>Advance Paid</span>
-                      <span>₹{Array.isArray(booking.advance) ? booking.advance.reduce((sum, adv) => sum + (adv.amount || 0), 0) : (booking.advance || 0)}</span>
+                      <span>₹{(() => {
+                        const totalAdvance = Array.isArray(booking.advance) ? booking.advance.reduce((sum, adv) => sum + (adv.amount || 0), 0) : (booking.advance || 0);
+                        if (booking.foodType === 'Both') {
+                          const proportion = invoiceType === 'Veg' 
+                            ? (booking.vegPax / booking.pax) 
+                            : (booking.nonVegPax / booking.pax);
+                          return (totalAdvance * proportion).toFixed(2);
+                        }
+                        return totalAdvance;
+                      })()}</span>
                     </div>
                     <div className="flex justify-between text-lg font-bold text-red-600">
                       <span>Balance Due</span>
-                      <span>₹{booking.balance || 0}</span>
+                      <span>₹{(() => {
+                        if (booking.foodType === 'Both') {
+                          const subtotal = invoiceType === 'Veg' 
+                            ? (booking.vegPax * (booking.vegRate || 0))
+                            : (booking.nonVegPax * (booking.nonVegRate || 0));
+                          const discountAmount = booking.discount > 0 ? (subtotal * booking.discount) / 100 : 0;
+                          const afterDiscount = subtotal - discountAmount;
+                          const proportion = invoiceType === 'Veg' 
+                            ? (booking.vegPax / booking.pax) 
+                            : (booking.nonVegPax / booking.pax);
+                          const extraCharges = ((booking.decorationCharge || 0) + (booking.musicCharge || 0) + (booking.extraRoomTotalPrice || 0)) * proportion;
+                          const total = afterDiscount + extraCharges;
+                          const totalAdvance = Array.isArray(booking.advance) ? booking.advance.reduce((sum, adv) => sum + (adv.amount || 0), 0) : (booking.advance || 0);
+                          const advance = totalAdvance * proportion;
+                          return (total - advance).toFixed(2);
+                        }
+                        return booking.balance || 0;
+                      })()}</span>
                     </div>
                   </div>
                 </div>

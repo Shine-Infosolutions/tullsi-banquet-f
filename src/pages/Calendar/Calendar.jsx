@@ -57,17 +57,13 @@ function Calendar({ setSidebarOpen }) {
   const fetchBookings = async () => {
     setLoading(true)
     try {
-      const response = await fetch('https://tulsi-banquet-backend.vercel.app/api/bookings/')
-      const data = await response.json()
+      const res = await bookingAPI.getAll()
+      const data = res.data
       
       let bookingsArray = []
-      
-      // Handle different response structures
       if (Array.isArray(data)) {
         bookingsArray = data
-      } else if (data.success && Array.isArray(data.data)) {
-        bookingsArray = data.data
-      } else if (data.data && Array.isArray(data.data)) {
+      } else if (data?.data && Array.isArray(data.data)) {
         bookingsArray = data.data
       }
       

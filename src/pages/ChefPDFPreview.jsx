@@ -150,7 +150,12 @@ const ChefPDFPreview = ({ booking, className }) => {
                       <div><strong>Customer:</strong> {booking.name || 'N/A'}</div>
                       <div><strong>Date:</strong> {new Date(booking.startDate).toLocaleDateString()}</div>
                       <div><strong>Time:</strong> {booking.time || 'N/A'}</div>
-                      <div><strong>Pax:</strong> {booking.pax || 'N/A'}</div>
+                      <div>
+                        <strong>Pax:</strong>{' '}
+                        {booking.foodType === 'Both'
+                          ? `${booking.pax || 0} total (🥦 ${booking.vegPax || 0} Veg + 🍗 ${booking.nonVegPax || 0} Non-Veg)`
+                          : booking.pax || 'N/A'}
+                      </div>
                       <div><strong>Food Type:</strong> {booking.foodType || 'N/A'}</div>
                       <div><strong>Rate Plan:</strong> {booking.ratePlan || 'N/A'}</div>
                       <div><strong>Hall:</strong> {booking.hall || 'N/A'}</div>
@@ -162,37 +167,77 @@ const ChefPDFPreview = ({ booking, className }) => {
                     <h2 className="text-xl font-bold mb-6 pb-2" style={{borderBottom: '2px solid #c3ad6b', color: '#c3ad6b'}}>MENU ITEMS TO PREPARE</h2>
                     {(() => {
                       const displayMenuData = menuData || booking.categorizedMenu;
-                      return (displayMenuData && typeof displayMenuData === 'object' && Object.keys(displayMenuData).length > 0) ? (
+                      const skip = ["_id", "createdAt", "updatedAt", "__v", "bookingRef", "customerRef"];
+                      const isNonVegCat = (cat) => /NON.?VEG/i.test(cat);
+
+                      if (!displayMenuData || typeof displayMenuData !== 'object' || Object.keys(displayMenuData).length === 0) {
+                        return booking.menuItems
+                          ? <div className="text-sm"><p>{booking.menuItems}</p></div>
+                          : <p className="text-center py-8 text-gray-500">No menu items available</p>;
+                      }
+
+                      const entries = Object.entries(displayMenuData).filter(
+                        ([k, v]) => !skip.includes(k) && Array.isArray(v) && v.length > 0
+                      );
+
+                      const renderCategoryBlock = (category, items) => (
+                        <div key={category} className="mb-5">
+                          <h3 className="text-sm font-bold mb-2 uppercase pb-1" style={{borderBottom: '1px solid #e8dfc8', color: '#c3ad6b'}}>
+                            {category.replaceAll('_', ' ')}
+                          </h3>
+                          <ul className="space-y-1">
+                            {items.map((item, i) => (
+                              <li key={i} className="flex items-start text-sm">
+                                <span className="mr-2 mt-0.5 text-xs">•</span>
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+
+                      if (booking.foodType === 'Both') {
+                        const vegEntries = entries.filter(([k]) => !isNonVegCat(k));
+                        const nonVegEntries = entries.filter(([k]) => isNonVegCat(k));
+                        return (
+                          <div className="grid grid-cols-2 gap-6">
+                            {/* Veg Column */}
+                            <div style={{border: '1px solid #bbf7d0', borderRadius: 8, overflow: 'hidden'}}>
+                              <div style={{backgroundColor: '#f0fdf4', padding: '8px 12px', borderBottom: '1px solid #bbf7d0'}}>
+                                <span style={{fontWeight: 'bold', color: '#15803d', fontSize: 13}}>🥦 VEG ITEMS</span>
+                                {booking.vegPax > 0 && (
+                                  <span style={{marginLeft: 8, fontSize: 11, color: '#16a34a'}}>({booking.vegPax} pax)</span>
+                                )}
+                              </div>
+                              <div style={{padding: '12px'}}>
+                                {vegEntries.length > 0
+                                  ? vegEntries.map(([cat, items]) => renderCategoryBlock(cat, items))
+                                  : <p style={{color: '#9ca3af', fontSize: 12}}>No veg items selected</p>}
+                              </div>
+                            </div>
+                            {/* Non-Veg Column */}
+                            <div style={{border: '1px solid #fecaca', borderRadius: 8, overflow: 'hidden'}}>
+                              <div style={{backgroundColor: '#fef2f2', padding: '8px 12px', borderBottom: '1px solid #fecaca'}}>
+                                <span style={{fontWeight: 'bold', color: '#dc2626', fontSize: 13}}>🍗 NON-VEG ITEMS</span>
+                                {booking.nonVegPax > 0 && (
+                                  <span style={{marginLeft: 8, fontSize: 11, color: '#ef4444'}}>({booking.nonVegPax} pax)</span>
+                                )}
+                              </div>
+                              <div style={{padding: '12px'}}>
+                                {nonVegEntries.length > 0
+                                  ? nonVegEntries.map(([cat, items]) => renderCategoryBlock(cat, items))
+                                  : <p style={{color: '#9ca3af', fontSize: 12}}>No non-veg items selected</p>}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Single food type — original 2-col grid
+                      return (
                         <div className="grid grid-cols-2 gap-8">
-                          {Object.entries(displayMenuData).map(([category, items]) => {
-                            const skip = ["_id", "createdAt", "updatedAt", "__v", "bookingRef", "customerRef"];
-                            if (skip.includes(category)) return null;
-                            if (Array.isArray(items) && items.length > 0) {
-                              return (
-                                <div key={category} className="mb-6">
-                                  <h3 className="text-lg font-bold mb-3 uppercase" style={{color: '#c3ad6b'}}>
-                                    {category.replaceAll("_", " ")}
-                                  </h3>
-                                  <ul className="space-y-2">
-                                    {items.map((item, i) => (
-                                      <li key={i} className="flex items-start">
-                                        <span className="mr-3 mt-1">•</span>
-                                        <span className="text-sm">{item}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              );
-                            }
-                            return null;
-                          })}
+                          {entries.map(([category, items]) => renderCategoryBlock(category, items))}
                         </div>
-                      ) : booking.menuItems ? (
-                        <div className="text-sm">
-                          <p>{booking.menuItems}</p>
-                        </div>
-                      ) : (
-                        <p className="text-center py-8 text-gray-500">No menu items available</p>
                       );
                     })()}
                   </div>

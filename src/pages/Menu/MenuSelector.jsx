@@ -165,7 +165,7 @@ const MenuSelector = ({
           // Filter categories based on food type
           const filteredCats = cats.filter(cat => {
             const catName = cat.cateName || cat.name;
-            // For Veg, exclude any NON-VEG categories
+            // For Veg only, exclude NON-VEG categories
             if (foodType === 'Veg' && (catName.includes('NON-VEG') || catName.includes('NON VEG'))) {
               return false;
             }
@@ -236,8 +236,8 @@ const MenuSelector = ({
       
       if (!categoryMatch) return false;
       
-      // Filter by foodType
-      if (foodType && item.foodType) {
+      // Filter by foodType — Both shows all items
+      if (foodType && foodType !== 'Both' && item.foodType) {
         if (item.foodType === 'Both') return true;
         return item.foodType === foodType;
       }
@@ -347,201 +347,239 @@ const MenuSelector = ({
     }
   };
 
+  // Get selected count for a given category name
+  const getCategorySelectedCount = (catName) => {
+    return selectedItems.filter(sel => {
+      const itemData = menuItems.find(mi => mi.name === sel);
+      const catObj = categories.find(c => c._id === itemData?.category);
+      return (catObj?.cateName || catObj?.name) === catName;
+    }).length;
+  };
+
+  // Get limit for current category from planLimits
+  const getCurrentCategoryLimit = (catName) => {
+    if (foodType === 'Both') return null; // No limits enforced for Both
+    const matchingPlan = Array.isArray(planLimits)
+      ? planLimits.find(p => p.foodType === foodType && p.ratePlan === ratePlan)
+      : null;
+    const key = catName?.toUpperCase().replace(/\s+/g, '_');
+    return matchingPlan?.limits?.[key] ?? matchingPlan?.limits?.[catName] ?? null;
+  };
+
   if (loading) {
     return (
-      <div className="modal modal-open">
-        <div className="modal-box max-w-6xl h-[92vh] flex items-center justify-center">
-          <div className="loading loading-spinner loading-lg"></div>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#c3ad6b]"></div>
       </div>
     );
   }
 
   return (
-    <div className="modal modal-open">
-      <div className="modal-box max-w-6xl h-[92vh] flex flex-col">
-        <button className="btn btn-sm btn-circle btn-ghost absolute right-4 top-4" onClick={() => {
-          if (onSave && selectedItems.length > 0) {
-            onSave(selectedItems, buildCategorizedMenu(selectedItems));
-          }
-          onClose();
-        }}>✕</button>
-        
-        <div className="flex flex-1 h-full">
-          {/* Categories Sidebar */}
-          <aside className="w-[300px] bg-base-200 p-4 overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="font-bold text-lg">Categories</h4>
+    <div className="flex flex-col h-full" style={{ backgroundColor: 'hsl(45,100%,97%)' }}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-[#e8dfc8] sticky top-0 z-10">
+        <div>
+          <h3 className="text-base font-bold" style={{ color: 'hsl(45,100%,20%)' }}>
+            Menu Selection
+          </h3>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {ratePlan && foodType ? `${ratePlan} · ${foodType === 'Both' ? 'Veg + Non-Veg' : foodType}` : 'Select items for the booking'}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="px-3 py-1 bg-[#c3ad6b]/10 text-[#8a7340] rounded-full text-xs font-semibold">
+            {selectedItems.length} selected
+          </span>
+          <button
+            onClick={() => {
+              if (onSave && selectedItems.length > 0) onSave(selectedItems, buildCategorizedMenu(selectedItems));
+              onClose();
+            }}
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Categories Sidebar */}
+        <aside className="w-52 flex-shrink-0 bg-white border-r border-[#e8dfc8] overflow-y-auto">
+          <div className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Categories</span>
               {isAdmin && (
-                <button 
-                  className="btn btn-xs btn-primary"
-                  onClick={() => setShowAddCategory(true)}
+                <button
+                  onClick={() => setShowAddCategory(v => !v)}
+                  className="w-6 h-6 flex items-center justify-center rounded-md bg-[#c3ad6b]/10 text-[#8a7340] hover:bg-[#c3ad6b]/20 transition-colors text-base font-bold"
                 >
                   +
                 </button>
               )}
             </div>
-            
+
             {showAddCategory && (
-              <div className="mb-4 p-2 bg-base-100 rounded">
+              <div className="mb-3 p-2 bg-[#c3ad6b]/5 border border-[#c3ad6b]/20 rounded-lg">
                 <input
                   type="text"
                   placeholder="Category name"
-                  className="input input-xs w-full mb-2"
+                  className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#c3ad6b] bg-white mb-2"
                   value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  onChange={e => setNewCategoryName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
                 />
                 <div className="flex gap-1">
-                  <button 
-                    className="btn btn-xs btn-primary"
-                    onClick={handleAddCategory}
-                  >
-                    Add
-                  </button>
-                  <button 
-                    className="btn btn-xs btn-ghost"
-                    onClick={() => {
-                      setShowAddCategory(false);
-                      setNewCategoryName("");
-                    }}
-                  >
-                    Cancel
-                  </button>
+                  <button onClick={handleAddCategory} className="flex-1 py-1 text-xs bg-[#c3ad6b] hover:bg-[#b39b5a] text-white rounded-md font-semibold transition-colors">Add</button>
+                  <button onClick={() => { setShowAddCategory(false); setNewCategoryName(''); }} className="flex-1 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-md font-semibold transition-colors">Cancel</button>
                 </div>
               </div>
             )}
-            
-            {categories.length === 0 ? (
-              <div className="text-center text-gray-500">No categories found</div>
-            ) : (
-              categories.map((category) => (
-                <button
-                  key={category.cateName || category.name}
-                  className={`w-full p-3 mb-2 rounded-lg text-left ${
-                    currentCategory === (category.cateName || category.name)
-                      ? "bg-primary text-primary-content" 
-                      : "bg-base-100 hover:bg-base-300"
-                  }`}
-                  onClick={() => setCurrentCategory(category.cateName || category.name)}
-                >
-                  <div>{category.cateName || category.name}</div>
-                  {!isAdmin && (() => {
-                    const matchingPlan = Array.isArray(planLimits) 
-                      ? planLimits.find(plan => plan.foodType === foodType && plan.ratePlan === ratePlan)
-                      : null;
-                    const categoryName = category.cateName || category.name;
-                    const limit = matchingPlan?.limits?.[categoryName];
-                    return limit ? (
-                      <div className="text-xs opacity-75">
-                        Limit: {limit}
-                      </div>
-                    ) : null;
-                  })()}
-                </button>
-              ))
-            )}
-          </aside>
 
-          {/* Items Content */}
-          <main className="flex-1 p-6">
-            <h3 className="font-bold text-2xl mb-4">{ratePlan} {foodType} Menu Selection</h3>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {currentCategoryItems.length === 0 ? (
-                <div className="text-center text-gray-500 col-span-full">
-                  {foodType ? `No ${foodType} items found for this category` : 'No items found for this category'}
-                </div>
-              ) : (
-                currentCategoryItems.map(item => {
-                  const isSelected = selectedItems.includes(item.name);
-                  
-                  // Check if limit reached for this category (skip for Admin)
-                  let isLimitReached = false;
-                  if (!isAdmin) {
-                    const matchingPlan = Array.isArray(planLimits) 
-                      ? planLimits.find(plan => plan.foodType === foodType && plan.ratePlan === ratePlan)
-                      : null;
-                    const categoryLimit = matchingPlan?.limits?.[currentCategory];
-                    const currentCategorySelectedCount = selectedItems.filter(selectedItem => {
-                      const selectedItemData = menuItems.find(mi => mi.name === selectedItem);
-                      if (selectedItemData?.category && typeof selectedItemData.category === 'string') {
-                        const match = selectedItemData.category.match(/cateName:\s*['"]([^'"]+)['"]/); 
-                        return match && match[1] === currentCategory;
-                      }
-                      return false;
-                    }).length;
-                    
-                    isLimitReached = categoryLimit && currentCategorySelectedCount >= categoryLimit && !isSelected;
-                  }
-                  
+            {categories.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-4">No categories</p>
+            ) : (
+              <div className="space-y-1">
+                {categories.map(category => {
+                  const catName = category.cateName || category.name;
+                  const isActive = currentCategory === catName;
+                  const limit = getCurrentCategoryLimit(catName);
+                  const selectedCount = getCategorySelectedCount(catName);
                   return (
-                    <div
-                      key={item.id}
-                      className={`p-3 rounded-lg transition-colors ${
-                        isLimitReached 
-                          ? "bg-gray-300 cursor-not-allowed opacity-50" 
-                          : isSelected 
-                          ? "bg-primary text-primary-content cursor-pointer" 
-                          : "bg-base-200 hover:bg-base-300 cursor-pointer"
+                    <button
+                      key={catName}
+                      onClick={() => setCurrentCategory(catName)}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg transition-all text-xs font-medium ${
+                        isActive
+                          ? 'bg-[#c3ad6b] text-white shadow-sm'
+                          : 'text-gray-700 hover:bg-[#c3ad6b]/10 hover:text-[#8a7340]'
                       }`}
-                      onClick={() => !isLimitReached && handleSelectItem(item.name)}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {}}
-                            disabled={isLimitReached}
-                            className="checkbox checkbox-sm"
-                          />
-                          <span className={isLimitReached ? "text-gray-500" : ""}>{item.name}</span>
-                        </div>
-                        {isAdmin && (
-                          <button
-                            className="btn btn-xs btn-error"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteMenuItem(item.name);
-                            }}
-                          >
-                            ×
-                          </button>
+                        <span className="truncate">{catName}</span>
+                        {limit !== null && (
+                          <span className={`ml-1 flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                            isActive ? 'bg-white/20 text-white' : 'bg-[#c3ad6b]/15 text-[#8a7340]'
+                          }`}>
+                            {selectedCount}/{limit}
+                          </span>
                         )}
                       </div>
-                    </div>
+                    </button>
                   );
-                })
-              )}
+                })}
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* Items Grid */}
+        <main className="flex-1 overflow-y-auto p-4">
+          {/* Category title + limit bar */}
+          {currentCategory && (() => {
+            const limit = getCurrentCategoryLimit(currentCategory);
+            const count = getCategorySelectedCount(currentCategory);
+            return (
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-bold" style={{ color: 'hsl(45,100%,20%)' }}>{currentCategory}</h4>
+                {limit !== null && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${Math.min((count / limit) * 100, 100)}%`,
+                          backgroundColor: count >= limit ? '#ef4444' : '#c3ad6b'
+                        }}
+                      />
+                    </div>
+                    <span className={`text-xs font-semibold ${ count >= limit ? 'text-red-500' : 'text-[#8a7340]' }`}>
+                      {count}/{limit}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {currentCategoryItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+              <svg className="w-10 h-10 mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <p className="text-sm">{foodType ? `No ${foodType} items in this category` : 'No items found'}</p>
             </div>
-          </main>
-        </div>
-        
-        <footer className="p-4 border-t flex justify-between items-center">
-          <div className="text-sm text-gray-600">
-            Selected: {selectedItems.length} items
-            {!isAdmin && (() => {
-              const matchingPlan = Array.isArray(planLimits) 
-                ? planLimits.find(plan => plan.foodType === foodType && plan.ratePlan === ratePlan)
-                : null;
-              const limit = matchingPlan?.limits?.[currentCategory];
-              if (limit) {
-                const currentCount = selectedItems.filter(item => {
-                  const itemData = menuItems.find(mi => mi.name === item);
-                  const categoryObj = categories.find(cat => cat._id === itemData?.category);
-                  return (categoryObj?.cateName || categoryObj?.name) === currentCategory;
-                }).length;
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {currentCategoryItems.map(item => {
+                const isSelected = selectedItems.includes(item.name);
+                let isLimitReached = false;
+                if (!isAdmin) {
+                  const limit = getCurrentCategoryLimit(currentCategory);
+                  const count = getCategorySelectedCount(currentCategory);
+                  isLimitReached = limit !== null && count >= limit && !isSelected;
+                }
                 return (
-                  <div className="text-xs">
-                    {currentCategory}: {currentCount}/{limit}
+                  <div
+                    key={item.id}
+                    onClick={() => !isLimitReached && handleSelectItem(item.name)}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all ${
+                      isLimitReached
+                        ? 'bg-gray-50 border-gray-200 opacity-50 cursor-not-allowed'
+                        : isSelected
+                        ? 'bg-[#c3ad6b] border-[#c3ad6b] text-white shadow-sm cursor-pointer'
+                        : 'bg-white border-gray-200 hover:border-[#c3ad6b] hover:bg-[#c3ad6b]/5 cursor-pointer'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-4 h-4 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors ${
+                        isSelected ? 'bg-white border-white' : 'border-gray-300'
+                      }`}>
+                        {isSelected && (
+                          <svg className="w-2.5 h-2.5 text-[#c3ad6b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className={`text-xs font-medium truncate ${ isSelected ? 'text-white' : isLimitReached ? 'text-gray-400' : 'text-gray-700' }`}>
+                        {item.name}
+                      </span>
+                    </div>
+                    {isAdmin && (
+                      <button
+                        onClick={e => { e.stopPropagation(); handleDeleteMenuItem(item.name); }}
+                        className={`flex-shrink-0 ml-1 w-5 h-5 flex items-center justify-center rounded-md transition-colors ${
+                          isSelected ? 'hover:bg-white/20 text-white' : 'hover:bg-red-50 text-red-400'
+                        }`}
+                      >
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 );
-              }
-              return null;
-            })()}
-          </div>
+              })}
+            </div>
+          )}
+        </main>
+      </div>
 
-        </footer>
+      {/* Footer */}
+      <div className="px-5 py-3 bg-white border-t border-[#e8dfc8] flex items-center justify-between">
+        <div className="text-xs text-gray-500">
+          <span className="font-semibold text-[#8a7340]">{selectedItems.length}</span> item{selectedItems.length !== 1 ? 's' : ''} selected
+        </div>
+        <button
+          onClick={() => {
+            if (onSave) onSave(selectedItems, buildCategorizedMenu(selectedItems));
+            onClose();
+          }}
+          className="px-5 py-2 bg-[#c3ad6b] hover:bg-[#b39b5a] text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+        >
+          Confirm Selection
+        </button>
       </div>
     </div>
   );

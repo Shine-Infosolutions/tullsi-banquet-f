@@ -7,6 +7,7 @@ import MenuSelector from "../Menu/MenuSelector";
 import DashboardLoader from "../../DashboardLoader";
 import useWebSocket from '../../hooks/useWebSocket';
 import { useAPI } from '../../hooks/useAPI';
+import { planLimitAPI } from '../../services/api';
 import {
   FaUser,
   FaArrowLeft,
@@ -21,43 +22,10 @@ import {
   FaCheckCircle,
 } from "react-icons/fa";
 
-// Rate configuration
-const RATE_CONFIG = {
-  Veg: {
-    Silver: {
-      basePrice: 1050,
-      taxPercent: 18,
-    },
-    Gold: {
-      basePrice: 1250,
-      taxPercent: 18,
-    },
-    Platinum: {
-      basePrice: 1899,
-      taxPercent: 18,
-    },
-  },
-  "Non-Veg": {
-    Silver: {
-      basePrice: 1050,
-      taxPercent: 18,
-    },
-    Gold: {
-      basePrice: 1250,
-      taxPercent: 18,
-    },
-    Platinum: {
-      basePrice: 2299,
-      taxPercent: 18,
-    },
-  },
-};
-
 const requiredFields = [
   "name",
   "number",
   "startDate",
-  "pax",
   "ratePlan",
   "foodType",
 ];
@@ -79,6 +47,20 @@ const AddBooking = () => {
   const [submitSuccess, setSubmitSuccess] = useState(false); // For button animation
   const [submitError, setSubmitError] = useState(false); // For button shake
 
+  const [rateConfig, setRateConfig] = useState({});
+
+  useEffect(() => {
+    planLimitAPI.getAll().then(res => {
+      const data = res.data?.success ? res.data.data : [];
+      const config = {};
+      data.forEach(p => {
+        if (!config[p.foodType]) config[p.foodType] = {};
+        config[p.foodType][p.ratePlan] = { basePrice: p.price || 0 };
+      });
+      setRateConfig(config);
+    }).catch(() => {});
+  }, []);
+
   // WebSocket connection
   const { sendMessage } = useWebSocket();
   
@@ -91,6 +73,8 @@ const AddBooking = () => {
     number: "",
     whatsapp: "",
     pax: "",
+    vegPax: "",
+    nonVegPax: "",
     startDate: selectedDateFromCalendar,
     hall: "",
     time: "",
@@ -133,35 +117,51 @@ const AddBooking = () => {
 
   // Calculate total when pax, ratePlan, foodType, gst, discount, decoration, or music charges change
   useEffect(() => {
+    const gstPercent = parseFloat(form.gst) || 0;
+    const decorationCharge = form.hasDecoration ? (parseFloat(form.decorationCharge) || 0) : 0;
+    const musicCharge = form.hasMusic ? (parseFloat(form.musicCharge) || 0) : 0;
+    const getBase = (ft) => rateConfig[ft]?.[form.ratePlan]?.basePrice || 0;
+
+    if (form.foodType === 'Both' && !form.useCustomPrice) {
+      const vegPax = parseInt(form.vegPax) || 0;
+      const nonVegPax = parseInt(form.nonVegPax) || 0;
+      if (!vegPax && !nonVegPax) return;
+      const vegBase = getBase('Veg');
+      const nonVegBase = getBase('Non-Veg');
+      if (!vegBase && !nonVegBase) return;
+      const vegTotal = (vegBase + (vegBase * gstPercent / 100)) * vegPax;
+      const nonVegTotal = (nonVegBase + (nonVegBase * gstPercent / 100)) * nonVegPax;
+      const total = vegTotal + nonVegTotal + decorationCharge + musicCharge;
+      const totalPax = vegPax + nonVegPax;
+      setForm((prev) => ({
+        ...prev,
+        pax: totalPax.toString(),
+        total: total ? total.toFixed(2) : "",
+        ratePerPax: totalPax > 0 ? (total / totalPax).toFixed(2) : "",
+      }));
+      return;
+    }
+
     if (form.pax && (form.useCustomPrice ? form.customPlatePrice : (form.ratePlan && form.foodType))) {
       const paxNum = parseInt(form.pax) || 0;
-      const gstPercent = parseFloat(form.gst) || 0;
-      
       let basePrice;
       if (form.useCustomPrice) {
         basePrice = parseFloat(form.customPlatePrice) || 0;
       } else {
-        const rateInfo = RATE_CONFIG[form.foodType][form.ratePlan];
-        if (!rateInfo) return;
-        basePrice = rateInfo.basePrice;
+        basePrice = getBase(form.foodType);
+        if (!basePrice) return;
       }
-      
       const gstAmount = (basePrice * gstPercent) / 100;
       const rateWithGST = basePrice + gstAmount;
       const foodTotal = rateWithGST * paxNum;
-      
-      // Add decoration and music charges
-      const decorationCharge = form.hasDecoration ? (parseFloat(form.decorationCharge) || 0) : 0;
-      const musicCharge = form.hasMusic ? (parseFloat(form.musicCharge) || 0) : 0;
       const total = foodTotal + decorationCharge + musicCharge;
-      
       setForm((prev) => ({
         ...prev,
         total: total ? total.toFixed(2) : "",
         ratePerPax: rateWithGST.toFixed(2),
       }));
     }
-  }, [form.pax, form.ratePlan, form.foodType, form.gst, form.decorationCharge, form.musicCharge, form.hasDecoration, form.hasMusic, form.useCustomPrice, form.customPlatePrice]);
+  }, [form.pax, form.vegPax, form.nonVegPax, form.ratePlan, form.foodType, form.gst, form.decorationCharge, form.musicCharge, form.hasDecoration, form.hasMusic, form.useCustomPrice, form.customPlatePrice, rateConfig]);
 
   // Balance calculation with advance array
   useEffect(() => {
@@ -262,18 +262,6 @@ const AddBooking = () => {
       return;
     }
     
-    // Handle rate plan change - auto set food type for Silver
-    if (name === "ratePlan") {
-      if (val === "Silver") {
-        setForm(prev => ({ ...prev, [name]: val, foodType: "Veg" }));
-        return;
-      } else if (form.ratePlan === "Silver" && val !== "Silver") {
-        // Reset food type when switching away from Silver
-        setForm(prev => ({ ...prev, [name]: val, foodType: "" }));
-        return;
-      }
-    }
-
     // Capitalize name field - make all letters uppercase
     if (name === "name") {
       val = val.toUpperCase();
@@ -329,9 +317,13 @@ const AddBooking = () => {
     if (!form.name) newErrors.name = "Name is required";
     if (!form.number) newErrors.number = "Mobile number is required";
     if (!form.startDate) newErrors.startDate = "Booking date is required";
-    if (!form.pax) newErrors.pax = "Number of pax is required";
     if (!form.ratePlan) newErrors.ratePlan = "Rate plan is required";
     if (!form.foodType) newErrors.foodType = "Food type is required";
+    if (form.foodType === 'Both') {
+      if (!form.vegPax && !form.nonVegPax) newErrors.vegPax = "Enter Veg or Non-Veg pax";
+    } else {
+      if (!form.pax) newErrors.pax = "Number of pax is required";
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -360,8 +352,11 @@ const AddBooking = () => {
         return { isEnquiry, isTentative, isConfirmed };
       }
       // Prepare the payload - explicitly structure the data
+      const getBase = (ft) => rateConfig[ft]?.[form.ratePlan]?.basePrice || 0;
       const payload = {
         ...form,
+        vegRate: form.foodType === 'Both' ? getBase('Veg') : 0,
+        nonVegRate: form.foodType === 'Both' ? getBase('Non-Veg') : 0,
         complimentaryRooms:
           form.complimentaryRooms === "" ? 0 : Number(form.complimentaryRooms),
         decorationCharge: form.hasDecoration ? (parseFloat(form.decorationCharge) || 0) : 0,
@@ -415,7 +410,7 @@ const AddBooking = () => {
   // Get the current rate information for display
   const getCurrentRateInfo = () => {
     if (!form.ratePlan || !form.foodType) return null;
-    return RATE_CONFIG[form.foodType][form.ratePlan];
+    return rateConfig[form.foodType]?.[form.ratePlan];
   };
 
   const currentRate = getCurrentRateInfo();
@@ -573,27 +568,75 @@ const AddBooking = () => {
 
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Pax */}
-                <div className="space-y-1">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Number of Pax <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <FaUsers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="number"
-                      name="pax"
-                      className={`pl-10 w-full rounded-lg border ${
-                        errors.pax ? "border-red-500" : "border-gray-300"
-                      } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 py-2 px-3`}
-                      onChange={handleChange}
-                      value={form.pax}
-                      required
-                    />
+                {form.foodType !== 'Both' ? (
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Number of Pax <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <FaUsers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="number"
+                        name="pax"
+                        className={`pl-10 w-full rounded-lg border ${
+                          errors.pax ? "border-red-500" : "border-gray-300"
+                        } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 py-2 px-3`}
+                        onChange={handleChange}
+                        value={form.pax}
+                        required
+                      />
+                    </div>
+                    {errors.pax && (
+                      <p className="text-red-500 text-xs mt-1">{errors.pax}</p>
+                    )}
                   </div>
-                  {errors.pax && (
-                    <p className="text-red-500 text-xs mt-1">{errors.pax}</p>
-                  )}
-                </div>
+                ) : (
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Number of Pax <span className="text-red-500">*</span>
+                    </label>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs text-green-700 font-medium mb-1">🥦 Veg Pax</label>
+                        <input
+                          type="number"
+                          name="vegPax"
+                          min="0"
+                          className={`w-full rounded-lg border ${
+                            errors.vegPax ? "border-red-500" : "border-green-300"
+                          } focus:ring-2 focus:ring-green-400 py-2 px-3`}
+                          onChange={handleChange}
+                          value={form.vegPax}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-red-600 font-medium mb-1">🍗 Non-Veg Pax</label>
+                        <input
+                          type="number"
+                          name="nonVegPax"
+                          min="0"
+                          className="w-full rounded-lg border border-red-300 focus:ring-2 focus:ring-red-400 py-2 px-3"
+                          onChange={handleChange}
+                          value={form.nonVegPax}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-[#8a7340] font-medium mb-1">Total Pax</label>
+                        <input
+                          type="number"
+                          readOnly
+                          className="w-full rounded-lg border border-[#e8dfc8] bg-[hsl(45,100%,97%)] py-2 px-3 text-[#8a7340] font-semibold"
+                          value={(parseInt(form.vegPax) || 0) + (parseInt(form.nonVegPax) || 0)}
+                        />
+                      </div>
+                    </div>
+                    {errors.vegPax && (
+                      <p className="text-red-500 text-xs mt-1">{errors.vegPax}</p>
+                    )}
+                  </div>
+                )}
 
                 {/* Date */}
                 <div className="space-y-1">
@@ -856,25 +899,25 @@ const AddBooking = () => {
                   <label className="block text-sm font-medium text-gray-700">
                     Food Type <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    name="foodType"
-                    className={`w-full rounded-lg border ${
-                      errors.foodType ? "border-red-500" : "border-gray-300"
-                    } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 py-2 px-3`}
-                    onChange={handleChange}
-                    value={form.foodType || ""}
-                    required
-                  >
-                    <option value="">Select Food Type</option>
-                    <option value="Veg">Veg</option>
-                    {form.ratePlan !== "Silver" && (
-                      <option value="Non-Veg">Non-Veg</option>
-                    )}
-                  </select>
+                  <div className="flex gap-4 mt-1">
+                    {['Veg', 'Non-Veg', 'Both'].map(ft => (
+                      <label key={ft} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="foodType"
+                          value={ft}
+                          checked={form.foodType === ft}
+                          onChange={handleChange}
+                          className="accent-[#c3ad6b]"
+                        />
+                        <span className={`text-sm font-medium ${
+                          ft === 'Veg' ? 'text-green-700' : ft === 'Non-Veg' ? 'text-red-600' : 'text-[#8a7340]'
+                        }`}>{ft}</span>
+                      </label>
+                    ))}
+                  </div>
                   {errors.foodType && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.foodType}
-                    </p>
+                    <p className="text-red-500 text-xs mt-1">{errors.foodType}</p>
                   )}
                 </div>
 
@@ -1237,33 +1280,20 @@ const AddBooking = () => {
                   </div>
                   <span className="text-xs text-gray-500">Rate Plan</span>
                   {form.foodType &&
-                    form.ratePlan &&
-                    RATE_CONFIG[form.foodType] &&
-                    RATE_CONFIG[form.foodType][form.ratePlan] && (
+                    form.ratePlan && (
                       <div className="text-xs text-gray-500 mt-1">
                         {(() => {
                           if (form.useCustomPrice) {
-                            const customPrice = parseFloat(form.customPlatePrice) || 0;
-                            return (
-                              <>
-                                Custom Rate:{" "}
-                                <span className="font-bold text-blue-600">
-                                  ₹{customPrice}
-                                </span>
-                              </>
-                            );
-                          } else {
-                            const base =
-                              RATE_CONFIG[form.foodType][form.ratePlan].basePrice;
-                            return (
-                              <>
-                                {form.ratePlan} Rate:{" "}
-                                <span className="font-bold text-[#c3ad6b]">
-                                  ₹{base}
-                                </span>
-                              </>
-                            );
+                            return (<>Custom Rate: <span className="font-bold text-blue-600">₹{parseFloat(form.customPlatePrice) || 0}</span></>);
                           }
+                          const getBase = (ft) => rateConfig[ft]?.[form.ratePlan]?.basePrice || 0;
+                          if (form.foodType === 'Both') {
+                            const vr = getBase('Veg'), nr = getBase('Non-Veg');
+                            return (<><span className="text-green-700">Veg ₹{vr}</span> + <span className="text-red-600">Non-Veg ₹{nr}</span> per plate</>);
+                          }
+                          const base = getBase(form.foodType);
+                          if (!base) return null;
+                          return (<>{form.ratePlan} Rate: <span className="font-bold text-[#c3ad6b]">₹{base}</span></>);
                         })()}
                       </div>
                     )}
@@ -1288,54 +1318,66 @@ const AddBooking = () => {
                       Calculation
                     </span>
                   </div>
-                  {(form.useCustomPrice ? (form.pax && form.customPlatePrice) : (form.ratePlan && form.foodType && form.pax)) ? (
-                    <>
-                      {(() => {
-                        let base;
-                        if (form.useCustomPrice) {
-                          base = parseFloat(form.customPlatePrice) || 0;
-                        } else {
-                          const rateInfo = RATE_CONFIG[form.foodType][form.ratePlan];
-                          if (!rateInfo) return null;
-                          base = rateInfo.basePrice;
-                        }
-                        
-                        const gstPercent = parseFloat(form.gst) || 0;
-                        const gstAmount = (base * gstPercent) / 100;
-                        const rateWithGST = base + gstAmount;
-                        const pax = parseInt(form.pax) || 0;
-                        const foodTotal = (rateWithGST * pax);
-                        const decorationCharge = form.hasDecoration ? (parseFloat(form.decorationCharge) || 0) : 0;
-                        const musicCharge = form.hasMusic ? (parseFloat(form.musicCharge) || 0) : 0;
-                        const grandTotal = foodTotal + decorationCharge + musicCharge;
-                        return (
-                          <>
-                            <span className="text-lg font-bold text-[#c3ad6b]">
-                              ₹{rateWithGST.toFixed(2)}
-                            </span>
-                            <span className="text-gray-700"> x {pax} = </span>
-                            <span className="text-lg font-bold text-[#c3ad6b]">
-                              ₹{foodTotal.toFixed(2)}
-                            </span>
-                            {(decorationCharge > 0 || musicCharge > 0) && (
-                              <div className="text-xs text-gray-600 mt-1">
-                                {decorationCharge > 0 && <div>+ Decoration: ₹{decorationCharge}</div>}
-                                {musicCharge > 0 && <div>+ Music: ₹{musicCharge}</div>}
-                                <div className="font-semibold">= ₹{grandTotal.toFixed(2)}</div>
-                              </div>
-                            )}
-                            <div className="text-xs text-gray-500 mt-1">
-                              Rate per pax: ₹{base} + ₹
-                              {gstAmount.toFixed(2)} (GST) = ₹
-                              {rateWithGST.toFixed(2)}
+                  {(() => {
+                    const gstPercent = parseFloat(form.gst) || 0;
+                    const decorationCharge = form.hasDecoration ? (parseFloat(form.decorationCharge) || 0) : 0;
+                    const musicCharge = form.hasMusic ? (parseFloat(form.musicCharge) || 0) : 0;
+                    const getBase = (ft) => rateConfig[ft]?.[form.ratePlan]?.basePrice || 0;
+
+                    if (form.foodType === 'Both' && !form.useCustomPrice && form.ratePlan) {
+                      const vegPax = parseInt(form.vegPax) || 0;
+                      const nonVegPax = parseInt(form.nonVegPax) || 0;
+                      if (!vegPax && !nonVegPax) return <span className="text-gray-400">Enter pax to calculate</span>;
+                      const vb = getBase('Veg'), nb = getBase('Non-Veg');
+                      const vRate = vb + (vb * gstPercent / 100);
+                      const nRate = nb + (nb * gstPercent / 100);
+                      const vegTotal = vRate * vegPax;
+                      const nonVegTotal = nRate * nonVegPax;
+                      const grandTotal = vegTotal + nonVegTotal + decorationCharge + musicCharge;
+                      return (
+                        <div className="text-xs space-y-1">
+                          {vegPax > 0 && <div className="text-green-700">🥦 ₹{vRate.toFixed(2)} × {vegPax} = ₹{vegTotal.toFixed(2)}</div>}
+                          {nonVegPax > 0 && <div className="text-red-600">🍗 ₹{nRate.toFixed(2)} × {nonVegPax} = ₹{nonVegTotal.toFixed(2)}</div>}
+                          {decorationCharge > 0 && <div className="text-gray-600">+ Decoration: ₹{decorationCharge}</div>}
+                          {musicCharge > 0 && <div className="text-gray-600">+ Music: ₹{musicCharge}</div>}
+                          <div className="font-bold text-[#c3ad6b] text-base">= ₹{grandTotal.toFixed(2)}</div>
+                        </div>
+                      );
+                    }
+
+                    if (form.useCustomPrice ? (form.pax && form.customPlatePrice) : (form.ratePlan && form.foodType && form.pax)) {
+                      let base;
+                      if (form.useCustomPrice) {
+                        base = parseFloat(form.customPlatePrice) || 0;
+                      } else {
+                        base = getBase(form.foodType);
+                        if (!base) return <span className="text-gray-400">Price not set</span>;
+                      }
+                      const gstAmount = (base * gstPercent) / 100;
+                      const rateWithGST = base + gstAmount;
+                      const pax = parseInt(form.pax) || 0;
+                      const foodTotal = rateWithGST * pax;
+                      const grandTotal = foodTotal + decorationCharge + musicCharge;
+                      return (
+                        <>
+                          <span className="text-lg font-bold text-[#c3ad6b]">₹{rateWithGST.toFixed(2)}</span>
+                          <span className="text-gray-700"> x {pax} = </span>
+                          <span className="text-lg font-bold text-[#c3ad6b]">₹{foodTotal.toFixed(2)}</span>
+                          {(decorationCharge > 0 || musicCharge > 0) && (
+                            <div className="text-xs text-gray-600 mt-1">
+                              {decorationCharge > 0 && <div>+ Decoration: ₹{decorationCharge}</div>}
+                              {musicCharge > 0 && <div>+ Music: ₹{musicCharge}</div>}
+                              <div className="font-semibold">= ₹{grandTotal.toFixed(2)}</div>
                             </div>
-                          </>
-                        );
-                      })()}
-                    </>
-                  ) : (
-                    <span className="text-gray-400">N/A</span>
-                  )}
+                          )}
+                          <div className="text-xs text-gray-500 mt-1">
+                            Rate per pax: ₹{base} + ₹{gstAmount.toFixed(2)} (GST) = ₹{rateWithGST.toFixed(2)}
+                          </div>
+                        </>
+                      );
+                    }
+                    return <span className="text-gray-400">N/A</span>;
+                  })()}
                 </div>
                 {/* Total Amount */}
                 <div className="flex-1 flex flex-col items-center md:items-start">
@@ -1383,21 +1425,38 @@ const AddBooking = () => {
                 </div>
 
                 {/* Menu */}
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
                     Selected Menu Items
                   </label>
-                  <textarea
-                    name="menuItems"
-                    className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 px-3 h-24"
-                    value={form.menuItems}
-                    readOnly
-                    placeholder="No menu items selected yet"
-                  />
+                  {form.categorizedMenu && Object.keys(form.categorizedMenu).length > 0 ? (
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      {form.foodType === 'Both' && (
+                        <div className="bg-gradient-to-r from-green-50 to-red-50 px-3 py-1.5 border-b border-gray-200 flex gap-3">
+                          <span className="text-xs font-bold text-green-700">🥦 Veg</span>
+                          <span className="text-xs text-gray-400">+</span>
+                          <span className="text-xs font-bold text-red-600">🍗 Non-Veg</span>
+                          <span className="text-xs text-gray-400 ml-auto">Combined Menu</span>
+                        </div>
+                      )}
+                      {Object.entries(form.categorizedMenu).map(([cat, items]) => (
+                        <div key={cat} className="px-3 py-2 border-b border-gray-100 last:border-0">
+                          <p className="text-xs font-semibold text-[#8a7340] mb-1">{cat}</p>
+                          <p className="text-xs text-gray-600">
+                            {Array.isArray(items) ? items.filter(i => typeof i === 'string').join(', ') : ''}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="border border-dashed border-gray-300 rounded-lg px-3 py-4 text-center text-xs text-gray-400">
+                      No menu items selected yet
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowMenuSelector(true)}
-                    className="mt-2 w-full md:w-auto flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#c3ad6b] hover:bg-[#b39b5a] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#c3ad6b]"
+                    className="mt-1 w-full md:w-auto flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#c3ad6b] hover:bg-[#b39b5a] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#c3ad6b]"
                   >
                     <FaUtensils className="mr-2" /> Select Menu Items
                   </button>

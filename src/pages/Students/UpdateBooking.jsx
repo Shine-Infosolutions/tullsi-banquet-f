@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { bookingAPI, menuAPI } from '../../services/api';
+import { bookingAPI, menuAPI, planLimitAPI } from '../../services/api';
 import {
   FaUser,
   FaPhone,
@@ -75,6 +75,7 @@ const UpdateBooking = () => {
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [menuLoading, setMenuLoading] = useState(false);
+  const [rateConfig, setRateConfig] = useState({});
 
   // Mock WebSocket for now
   const sendMessage = () => {};
@@ -83,56 +84,55 @@ const UpdateBooking = () => {
   const isStaffEditLimitReached =
     booking.staffEditCount >= 2 && role !== "Admin";
 
-  // --- RATE CONFIGURATION (copy from AddBooking) ---
-  const RATE_CONFIG = {
-    Veg: {
-      Silver: {
-        basePrice: 1050,
-        taxPercent: 18,
-      },
-      Gold: {
-        basePrice: 1250,
-        taxPercent: 18,
-      },
-      Platinum: {
-        basePrice: 1899,
-        taxPercent: 18,
-      },
-    },
-    "Non-Veg": {
-      Silver: {
-        basePrice: 1599,
-        taxPercent: 18,
-      },
-      Gold: {
-        basePrice: 1899,
-        taxPercent: 18,
-      },
-      Platinum: {
-        basePrice: 2299,
-        taxPercent: 18,
-      },
-    },
-  };
+  useEffect(() => {
+    planLimitAPI.getAll().then(res => {
+      const data = res.data?.success ? res.data.data : [];
+      const config = {};
+      data.forEach(p => {
+        if (!config[p.foodType]) config[p.foodType] = {};
+        config[p.foodType][p.ratePlan] = { basePrice: p.price || 0 };
+      });
+      setRateConfig(config);
+    }).catch(() => {});
+  }, []);
 
   // Calculate total when any relevant field changes
   useEffect(() => {
+    const gstPercent = parseFloat(booking.gst) || 0;
+    const decorationCharge = booking.hasDecoration ? (parseFloat(booking.decorationCharge) || 0) : 0;
+    const musicCharge = booking.hasMusic ? (parseFloat(booking.musicCharge) || 0) : 0;
+    const getBase = (ft) => rateConfig[ft]?.[booking.ratePlan]?.basePrice || 0;
+
+    if (booking.foodType === 'Both' && !booking.useCustomPrice && booking.ratePlan) {
+      const vegPax = parseInt(booking.vegPax) || 0;
+      const nonVegPax = parseInt(booking.nonVegPax) || 0;
+      if (!vegPax && !nonVegPax) return;
+      const vb = getBase('Veg'), nb = getBase('Non-Veg');
+      if (!vb && !nb) return;
+      const vegTotal = (vb + (vb * gstPercent / 100)) * vegPax;
+      const nonVegTotal = (nb + (nb * gstPercent / 100)) * nonVegPax;
+      const total = vegTotal + nonVegTotal + decorationCharge + musicCharge;
+      const totalPax = vegPax + nonVegPax;
+      setBooking((prev) => ({
+        ...prev,
+        pax: totalPax,
+        total: total.toFixed(2),
+        ratePerPax: totalPax > 0 ? (total / totalPax).toFixed(2) : prev.ratePerPax,
+      }));
+      return;
+    }
+
     if (booking.pax && booking.ratePerPax) {
       const paxNum = parseInt(booking.pax) || 0;
       const ratePerPax = parseFloat(booking.ratePerPax) || 0;
       const foodTotal = ratePerPax * paxNum;
-      
-      // Add decoration and music charges
-      const decorationCharge = booking.hasDecoration ? (parseFloat(booking.decorationCharge) || 0) : 0;
-      const musicCharge = booking.hasMusic ? (parseFloat(booking.musicCharge) || 0) : 0;
       const total = foodTotal + decorationCharge + musicCharge;
-      
       setBooking((prev) => ({
         ...prev,
         total: total.toFixed(2),
       }));
     }
-  }, [booking.pax, booking.ratePerPax, booking.decorationCharge, booking.musicCharge, booking.hasDecoration, booking.hasMusic]);
+  }, [booking.pax, booking.vegPax, booking.nonVegPax, booking.ratePerPax, booking.ratePlan, booking.foodType, booking.gst, booking.decorationCharge, booking.musicCharge, booking.hasDecoration, booking.hasMusic, booking.useCustomPrice, rateConfig]);
 
   // Calculate room price when rooms change
   useEffect(() => {
@@ -273,11 +273,8 @@ const UpdateBooking = () => {
                   },
                 ];
 
-          // Check if this is a custom rate - compare stored rate with RATE_CONFIG
-          const hasCustomRate = bookingData.ratePlan && bookingData.ratePerPax && 
-            RATE_CONFIG[bookingData.foodType] && 
-            RATE_CONFIG[bookingData.foodType][bookingData.ratePlan] &&
-            Number(bookingData.ratePerPax) !== RATE_CONFIG[bookingData.foodType][bookingData.ratePlan].basePrice;
+          // Check if this is a custom rate
+          const hasCustomRate = bookingData.useCustomPrice || false;
 
           // Use numbers for calculation fields, empty string if missing
           // Ensure staffEditCount is loaded from backend if present, else default to 0
@@ -288,6 +285,8 @@ const UpdateBooking = () => {
             categorizedMenu,
             useCustomPrice: hasCustomRate || bookingData.useCustomPrice || false,
             customPlatePrice: hasCustomRate ? String(bookingData.ratePerPax) : (bookingData.customPlatePrice || ""),
+            vegPax: bookingData.vegPax !== undefined ? Number(bookingData.vegPax) : "",
+            nonVegPax: bookingData.nonVegPax !== undefined ? Number(bookingData.nonVegPax) : "",
             pax:
               bookingData.pax !== undefined &&
               bookingData.pax !== null &&
@@ -488,12 +487,7 @@ const UpdateBooking = () => {
     setBooking((prev) => ({ ...prev, menuItems: updatedMenuItems }));
   };
 
-  // --- Rate Plan Summary UI Helper ---
-  const getCurrentRateInfo = () => {
-    if (!booking.ratePlan || !booking.foodType) return null;
-    return RATE_CONFIG[booking.foodType][booking.ratePlan];
-  };
-  const currentRate = getCurrentRateInfo();
+  const getBase = (ft) => rateConfig[ft]?.[booking.ratePlan]?.basePrice || 0;
 
   const removeMenuItem = (index) => {
     const updatedMenuItems = [...booking.menuItems];
@@ -513,14 +507,16 @@ const UpdateBooking = () => {
   const updateBooking = () => {
     setLoading(true);
 
-    const requiredFields = ["name", "email", "number", "pax", "startDate"];
-    const missingFields = requiredFields.filter((field) => !booking[field]);
+    const baseRequired = ["name", "email", "number", "startDate"];
+    const missingFields = baseRequired.filter((field) => !booking[field]);
+    if (booking.foodType === 'Both') {
+      if (!booking.vegPax && !booking.nonVegPax) missingFields.push("vegPax/nonVegPax");
+    } else {
+      if (!booking.pax) missingFields.push("pax");
+    }
 
     if (missingFields.length > 0) {
-      const missingFieldsMsg = `Please fill in all required fields: ${missingFields.join(
-        ", "
-      )}`;
-      toast.error(missingFieldsMsg);
+      toast.error(`Please fill in all required fields: ${missingFields.join(", ")}`);
       setLoading(false);
       return;
     }
@@ -554,11 +550,13 @@ const UpdateBooking = () => {
   };
 
   const performUpdate = (staffEditCount) => {
-    // Build payload with customerRef and categorizedMenu as requested
     const categorizedMenu = booking.categorizedMenu;
+    const getBase = (ft) => rateConfig[ft]?.[booking.ratePlan]?.basePrice || 0;
     const payload = {
       ...booking,
       staffEditCount,
+      vegRate: booking.foodType === 'Both' ? getBase('Veg') : 0,
+      nonVegRate: booking.foodType === 'Both' ? getBase('Non-Veg') : 0,
       complimentaryRooms:
         booking.complimentaryRooms === ""
           ? 0
@@ -753,23 +751,66 @@ const UpdateBooking = () => {
 
             <div className="grid md:grid-cols-2 gap-6">
               {/* Pax */}
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  Number of Pax <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <FaUsers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="number"
-                    name="pax"
-                    className="pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 py-2 px-3"
-                    onChange={handleNumberInputChange}
-                    value={isNaN(booking.pax) ? "" : booking.pax}
-                    min="1"
-                    required
-                  />
+              {booking.foodType !== 'Both' ? (
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Number of Pax <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <FaUsers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="number"
+                      name="pax"
+                      className="pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 py-2 px-3"
+                      onChange={handleNumberInputChange}
+                      value={isNaN(booking.pax) ? "" : booking.pax}
+                      min="1"
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-2 md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Number of Pax <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs text-green-700 font-medium mb-1">🥦 Veg Pax</label>
+                      <input
+                        type="number"
+                        name="vegPax"
+                        min="0"
+                        className="w-full rounded-lg border border-green-300 focus:ring-2 focus:ring-green-400 py-2 px-3"
+                        onChange={handleInputChange}
+                        value={booking.vegPax || ""}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-red-600 font-medium mb-1">🍗 Non-Veg Pax</label>
+                      <input
+                        type="number"
+                        name="nonVegPax"
+                        min="0"
+                        className="w-full rounded-lg border border-red-300 focus:ring-2 focus:ring-red-400 py-2 px-3"
+                        onChange={handleInputChange}
+                        value={booking.nonVegPax || ""}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-[#8a7340] font-medium mb-1">Total Pax</label>
+                      <input
+                        type="number"
+                        readOnly
+                        className="w-full rounded-lg border border-[#e8dfc8] bg-[hsl(45,100%,97%)] py-2 px-3 text-[#8a7340] font-semibold"
+                        value={(parseInt(booking.vegPax) || 0) + (parseInt(booking.nonVegPax) || 0)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Date */}
               <div className="space-y-1">
@@ -993,17 +1034,22 @@ const UpdateBooking = () => {
                 <label className="block text-sm font-medium text-gray-700">
                   Food Type
                 </label>
-                <div className="relative">
-                  <FaUtensils className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <select
-                    name="foodType"
-                    className="pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 py-2 px-3"
-                    onChange={handleInputChange}
-                    value={booking.foodType}
-                  >
-                    <option value="Veg">Veg</option>
-                    <option value="Non-Veg">Non-Veg</option>
-                  </select>
+                <div className="flex gap-4 mt-1">
+                  {['Veg', 'Non-Veg', 'Both'].map(ft => (
+                    <label key={ft} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="foodType"
+                        value={ft}
+                        checked={booking.foodType === ft}
+                        onChange={handleInputChange}
+                        className="accent-[#c3ad6b]"
+                      />
+                      <span className={`text-sm font-medium ${
+                        ft === 'Veg' ? 'text-green-700' : ft === 'Non-Veg' ? 'text-red-600' : 'text-[#8a7340]'
+                      }`}>{ft}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
@@ -1118,34 +1164,22 @@ const UpdateBooking = () => {
                   </span>
                 </div>
                 <span className="text-xs text-gray-500">Rate Plan</span>
-                {(() => {
-                  // Check if current rate is custom by comparing with standard rates
-                  let isCustomRate = false;
-                  let standardRate = 0;
-                  if (booking.ratePlan && booking.foodType && RATE_CONFIG[booking.foodType] && RATE_CONFIG[booking.foodType][booking.ratePlan]) {
-                    standardRate = RATE_CONFIG[booking.foodType][booking.ratePlan].basePrice;
-                    const currentRate = parseFloat(booking.ratePerPax) || 0;
-                    isCustomRate = Math.abs(currentRate - standardRate) > 0.01;
-                  }
-                  
-                  if (isCustomRate) {
-                    return (
-                      <div className="text-xs text-gray-500 mt-1">
-                        Custom Rate: <span className="font-bold text-[#c3ad6b]">₹{booking.ratePerPax}</span>
-                      </div>
-                    );
-                  } else if (booking.foodType && booking.ratePlan && RATE_CONFIG[booking.foodType] && RATE_CONFIG[booking.foodType][booking.ratePlan]) {
-                    return (
-                      <div className="text-xs text-gray-500 mt-1">
-                        {booking.ratePlan} Rate:{" "}
-                        <span className="font-bold text-[#c3ad6b]">
-                          ₹{standardRate}
-                        </span>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
+                {booking.ratePlan && booking.foodType && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    {(() => {
+                      if (booking.useCustomPrice) {
+                        return <>Custom Rate: <span className="font-bold text-blue-600">₹{booking.customPlatePrice || booking.ratePerPax}</span></>;
+                      }
+                      if (booking.foodType === 'Both') {
+                        const vr = getBase('Veg'), nr = getBase('Non-Veg');
+                        return <><span className="text-green-700">Veg ₹{vr}</span> + <span className="text-red-600">Non-Veg ₹{nr}</span> per plate</>;
+                      }
+                      const base = getBase(booking.foodType);
+                      if (!base) return null;
+                      return <>{booking.ratePlan} Rate: <span className="font-bold text-[#c3ad6b]">₹{base}</span></>;
+                    })()}
+                  </div>
+                )}
               </div>
               {/* Food Type */}
               <div className="flex-1 flex flex-col items-center md:items-start">
@@ -1167,55 +1201,54 @@ const UpdateBooking = () => {
                     Calculation
                   </span>
                 </div>
-                {booking.pax && booking.ratePerPax ? (
-                  <>
-                    {(() => {
-                      const pax = parseInt(booking.pax) || 0;
-                      const ratePerPax = parseFloat(booking.ratePerPax) || 0;
-                      const foodTotal = ratePerPax * pax;
-                      
-                      const decorationCharge = booking.hasDecoration ? (parseFloat(booking.decorationCharge) || 0) : 0;
-                      const musicCharge = booking.hasMusic ? (parseFloat(booking.musicCharge) || 0) : 0;
-                      const grandTotal = foodTotal + decorationCharge + musicCharge;
-                      
-                      // Check if this is a custom rate by comparing with standard rates
-                      let isCustomRate = false;
-                      let standardRate = 0;
-                      if (booking.ratePlan && booking.foodType && RATE_CONFIG[booking.foodType] && RATE_CONFIG[booking.foodType][booking.ratePlan]) {
-                        standardRate = RATE_CONFIG[booking.foodType][booking.ratePlan].basePrice;
-                        isCustomRate = Math.abs(ratePerPax - standardRate) > 0.01; // Allow for small floating point differences
-                      }
-                      
-                      return (
-                        <>
-                          <span className="text-lg font-bold text-[#c3ad6b]">
-                            ₹{ratePerPax.toFixed(2)}
-                          </span>
-                          <span className="text-gray-700"> x {pax} = </span>
-                          <span className="text-lg font-bold text-[#c3ad6b]">
-                            ₹{foodTotal.toFixed(2)}
-                          </span>
-                          {(decorationCharge > 0 || musicCharge > 0) && (
-                            <div className="text-xs text-gray-600 mt-1">
-                              {decorationCharge > 0 && <div>+ Decoration: ₹{decorationCharge}</div>}
-                              {musicCharge > 0 && <div>+ Music: ₹{musicCharge}</div>}
-                              <div className="font-semibold">= ₹{grandTotal.toFixed(2)}</div>
-                            </div>
-                          )}
-                          <div className="text-xs text-gray-500 mt-1">
-                            {isCustomRate ? (
-                              `Custom rate: ₹${ratePerPax.toFixed(2)} + ₹0.00 (GST) = ₹${ratePerPax.toFixed(2)}`
-                            ) : (
-                              `${booking.ratePlan} rate: ₹${standardRate} + ₹0.00 (GST) = ₹${ratePerPax.toFixed(2)}`
-                            )}
+                {(() => {
+                  const gstPercent = parseFloat(booking.gst) || 0;
+                  const decorationCharge = booking.hasDecoration ? (parseFloat(booking.decorationCharge) || 0) : 0;
+                  const musicCharge = booking.hasMusic ? (parseFloat(booking.musicCharge) || 0) : 0;
+
+                  if (booking.foodType === 'Both' && !booking.useCustomPrice && booking.ratePlan) {
+                    const vegPax = parseInt(booking.vegPax) || 0;
+                    const nonVegPax = parseInt(booking.nonVegPax) || 0;
+                    if (!vegPax && !nonVegPax) return <span className="text-gray-400">Enter pax to calculate</span>;
+                    const vb = getBase('Veg'), nb = getBase('Non-Veg');
+                    const vRate = vb + (vb * gstPercent / 100);
+                    const nRate = nb + (nb * gstPercent / 100);
+                    const vegTotal = vRate * vegPax;
+                    const nonVegTotal = nRate * nonVegPax;
+                    const grandTotal = vegTotal + nonVegTotal + decorationCharge + musicCharge;
+                    return (
+                      <div className="text-xs space-y-1">
+                        {vegPax > 0 && <div className="text-green-700">🥦 ₹{vRate.toFixed(2)} × {vegPax} = ₹{vegTotal.toFixed(2)}</div>}
+                        {nonVegPax > 0 && <div className="text-red-600">🍗 ₹{nRate.toFixed(2)} × {nonVegPax} = ₹{nonVegTotal.toFixed(2)}</div>}
+                        {decorationCharge > 0 && <div className="text-gray-600">+ Decoration: ₹{decorationCharge}</div>}
+                        {musicCharge > 0 && <div className="text-gray-600">+ Music: ₹{musicCharge}</div>}
+                        <div className="font-bold text-[#c3ad6b] text-base">= ₹{grandTotal.toFixed(2)}</div>
+                      </div>
+                    );
+                  }
+
+                  if (booking.pax && booking.ratePerPax) {
+                    const pax = parseInt(booking.pax) || 0;
+                    const ratePerPax = parseFloat(booking.ratePerPax) || 0;
+                    const foodTotal = ratePerPax * pax;
+                    const grandTotal = foodTotal + decorationCharge + musicCharge;
+                    return (
+                      <>
+                        <span className="text-lg font-bold text-[#c3ad6b]">₹{ratePerPax.toFixed(2)}</span>
+                        <span className="text-gray-700"> x {pax} = </span>
+                        <span className="text-lg font-bold text-[#c3ad6b]">₹{foodTotal.toFixed(2)}</span>
+                        {(decorationCharge > 0 || musicCharge > 0) && (
+                          <div className="text-xs text-gray-600 mt-1">
+                            {decorationCharge > 0 && <div>+ Decoration: ₹{decorationCharge}</div>}
+                            {musicCharge > 0 && <div>+ Music: ₹{musicCharge}</div>}
+                            <div className="font-semibold">= ₹{grandTotal.toFixed(2)}</div>
                           </div>
-                        </>
-                      );
-                    })()}
-                  </>
-                ) : (
-                  <span className="text-gray-400">N/A</span>
-                )}
+                        )}
+                      </>
+                    );
+                  }
+                  return <span className="text-gray-400">N/A</span>;
+                })()}
               </div>
               {/* Total Amount */}
               <div className="flex-1 flex flex-col items-center md:items-start">
@@ -1551,38 +1584,36 @@ const UpdateBooking = () => {
                     </div>
                   )}
                 </div>
-                {/* Selected Menu Items (read-only textarea, like AddBooking) */}
-                <div className="space-y-1">
+                {/* Selected Menu Items - Categorized Preview */}
+                <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
                     Selected Menu Items
                   </label>
-                  <textarea
-                    name="menuItems"
-                    className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 px-3 h-24"
-                    value={
-                      booking.categorizedMenu
-                        ? Object.entries(booking.categorizedMenu)
-                            .filter(
-                              ([key]) =>
-                                ![
-                                  "_id",
-                                  "bookingRef",
-                                  "createdAt",
-                                  "updatedAt",
-                                  "__v",
-                                ].includes(key)
-                            )
-                            .map(([, arr]) => arr)
-                            .flat()
-                            .join(", ")
-                        : ""
-                    }
-                    readOnly
-                    placeholder="No menu items selected yet - click 'Select Menu Items' to add items"
-                  />
-                  {!booking.categorizedMenu && (
-                    <div className="text-sm text-blue-600 mt-1">
-                      💡 This booking doesn't have menu items yet. Use the "Select Menu Items" button above to add them.
+                  {booking.categorizedMenu && Object.keys(booking.categorizedMenu).filter(k => !['_id','bookingRef','createdAt','updatedAt','__v','customerRef'].includes(k)).length > 0 ? (
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      {booking.foodType === 'Both' && (
+                        <div className="bg-gradient-to-r from-green-50 to-red-50 px-3 py-1.5 border-b border-gray-200 flex gap-3">
+                          <span className="text-xs font-bold text-green-700">🥦 Veg</span>
+                          <span className="text-xs text-gray-400">+</span>
+                          <span className="text-xs font-bold text-red-600">🍗 Non-Veg</span>
+                          <span className="text-xs text-gray-400 ml-auto">Combined Menu</span>
+                        </div>
+                      )}
+                      {Object.entries(booking.categorizedMenu)
+                        .filter(([key]) => !['_id','bookingRef','createdAt','updatedAt','__v','customerRef'].includes(key))
+                        .map(([cat, items]) => (
+                          <div key={cat} className="px-3 py-2 border-b border-gray-100 last:border-0">
+                            <p className="text-xs font-semibold text-[#8a7340] mb-1">{cat}</p>
+                            <p className="text-xs text-gray-600">
+                              {Array.isArray(items) ? items.filter(i => typeof i === 'string').join(', ') : ''}
+                            </p>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  ) : (
+                    <div className="border border-dashed border-gray-300 rounded-lg px-3 py-4 text-center text-xs text-gray-400">
+                      No menu items selected yet — click 'Select Menu Items' to add
                     </div>
                   )}
                 </div>

@@ -12,6 +12,7 @@ import { useAppContext } from '../../context/AppContext';
 import DashboardLoader from '../../DashboardLoader';
 import useWebSocket from '../../hooks/useWebSocket';
 import WebSocketStatus from '../../components/WebSocketStatus';
+import { bookingAPI } from '../../services/api';
 
 function LaganCalendar({ setSidebarOpen }) {
   const { axios } = useAppContext();
@@ -313,19 +314,14 @@ function LaganCalendar({ setSidebarOpen }) {
 
   const fetchBookings = async () => {
     try {
-      console.log('Fetching bookings...');
-      const response = await fetch('https://tulsi-banquet-backend.vercel.app/api/bookings/');
-      const data = await response.json();
-      
-      let bookingsArray = [];
-      
-      // Handle different response structures
+      const res = await bookingAPI.getAll()
+      const data = res.data
+
+      let bookingsArray = []
       if (Array.isArray(data)) {
-        bookingsArray = data;
-      } else if (data.success && Array.isArray(data.data)) {
-        bookingsArray = data.data;
-      } else if (data.data && Array.isArray(data.data)) {
-        bookingsArray = data.data;
+        bookingsArray = data
+      } else if (data?.data && Array.isArray(data.data)) {
+        bookingsArray = data.data
       }
       
       const grouped = {};

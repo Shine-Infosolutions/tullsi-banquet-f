@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiMenu, FiLayers } from 'react-icons/fi';
+import { FiMenu, FiLayers, FiPackage } from 'react-icons/fi';
 import MenuItemManager from './MenuItemManager';
 import PlanLimitManager from './PlanLimitManager';
+import PackagePlanManager from './PackagePlanManager';
 import DashboardLoader from '../DashboardLoader';
 
 const MenuPlanManager = ({ setSidebarOpen }) => {
@@ -61,11 +62,23 @@ const MenuPlanManager = ({ setSidebarOpen }) => {
             <FiLayers className="w-4 h-4" />
             Plan Limits
           </button>
+          <button
+            onClick={() => setActiveTab('packages')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all duration-200 ${
+              activeTab === 'packages'
+                ? 'bg-[#c3ad6b] text-white shadow'
+                : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+            }`}
+          >
+            <FiPackage className="w-4 h-4" />
+            Packages
+          </button>
         </div>
 
         <div>
           {activeTab === 'menu' && <MenuItemManager />}
           {activeTab === 'plans' && <PlanLimitManager />}
+          {activeTab === 'packages' && <PackagePlanManager />}
         </div>
       </main>
     </div>
